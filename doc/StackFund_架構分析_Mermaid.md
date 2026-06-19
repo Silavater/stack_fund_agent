@@ -2,7 +2,7 @@
 
 > 來源文件：`doc/StackFund_可行性報告.md`
 >
-> 本文件對齊可行性報告 v3.0「Core-B 架構定案版」。本次更新只整理 Mermaid 排版與可讀性，不加顏色、不改架構語意。
+> 本文件對齊可行性報告 v3.1「Core-B 架構定案版（FACE 純敘事側軌）」。本次更新落實 v3.1 架構變更：FACE 改為純敘事側軌，群眾層不回寫 L4——移除 two-key gate／bounded clamp／threshold-flip／TiltProvenance／zero-modifier CI，改以「L4 不接線」結構防火牆取代。
 
 ## 0. 撰寫假設與驗收標準
 
@@ -11,14 +11,14 @@
 - StackFund 的主體是自主經營的台股 ETF 研究微型事業；產品門面是「群眾情境推演引擎」。
 - Stripe 只負責事業金流：訂閱、營運支出、SaaS provision、支出拒絕；不負責證券下單。
 - Core-B 的核心契約是 FACE / ENGINE 分離：群眾情境引擎是 FACE，deterministic Python 主幹是 ENGINE。
-- 群眾情境引擎只輸出敘事、人格樣本、反應鏈與一個非權威 `contrarian_modifier`；不得決定 price／NAV／yield／weight／spend-cap 等權威數字。
-- RebalancePlan 的每個非零動作，都必須在移除群眾 modifier 後仍能由硬數據獨立辯護。
+- 群眾情境引擎只輸出敘事、人格樣本、反應鏈與一個非權威 `contrarian_modifier`；不得決定 price／NAV／yield／weight／spend-cap 等權威數字，也不回寫任何決策層。
+- RebalancePlan 由 ScoreCard 單獨決定；群眾 modifier 不進入決策路徑，故每個非零動作按建構即由硬數據獨立辯護。
 
 ### 驗收標準
 
 - 能看出 v3 從舊五層架構升級為 Core-B 六層架構。
-- 能看出 L3 群眾情境引擎是側軌葉節點，不回寫 L1／L2／L5。
-- 能看出 Portfolio Manager 的四步消費：hard-only first、two-key gate、bounded clamp、threshold-flip。
+- 能看出 L3 群眾情境引擎是純敘事側軌葉節點，不回寫 L1／L2／L4／L5（對決策路徑零連線）。
+- 能看出 Portfolio Manager 只吃 ScoreCard 產出 hard-only plan／NO_ACTION，完全不消費 modifier。
 - Mermaid 圖只做排版優化，保持原版樣式，不加顏色或 theme。
 
 ---
@@ -29,8 +29,8 @@
 |---|---|---|
 | 產品門面 | Pro 方案賣二階反應鏈敘事，不是更強的數字 | 新增 Crowd Scenario FACE |
 | 主幹可信度 | 所有市場數字、權重、支出由 deterministic Python 算 | L1／L2／L4／L5 保持權威 |
-| 防火牆 | L3 只 emit typed object，不 import 計算或 Stripe 模組 | 需要 type、import、input、flag 四層控制 |
-| PM 消費方式 | modifier 只能在硬數據同方向、雙理由成立時微調 | L4 必須有 gate／clamp／zero-modifier CI |
+| 防火牆 | L3 只 emit typed object，不 import 計算或 Stripe 模組，且不連決策路徑 | 需要 type、import、input、flag、**接線** 五層控制 |
+| PM 消費方式 | **L4 完全不消費 modifier，只吃 ScoreCard** | L4 不 import／不接收 ContrarianSignal（接線 CI） |
 | 法規風險 | 防火牆是 correctness 控制，不是主要投顧防線 | 合規主線仍是非個別化、test-mode、零下單、免責 |
 | Demo 策略 | 群眾引擎拿 WOW beat，但 earn／spend／refused-spend 保持主軸 | runbook 標 live／replayed，禁 live re-bake |
 
@@ -55,11 +55,10 @@ flowchart TB
         Boundary["受控代理執行邊界<br/>Hermes / Crowd / FinOps"]
         Engine["ENGINE：deterministic 主幹<br/>ETF Data Book -> Scorecard -> Portfolio -> FinOps -> Audit/P&L"]
         Face["FACE：非權威門面<br/>ScenarioSeed -> Crowd Scenario -> ContrarianSignal"]
-        Firewall["Core-B 防火牆<br/>advisory only / no authoritative numbers / no primary spend trigger"]
+        Firewall["Core-B 防火牆<br/>narrative only / no authoritative numbers / no write-back to engine"]
 
         Boundary --> Engine
         Engine -->|"frozen projection"| Face
-        Face -.->|"bounded modifier only"| Engine
         Face --> Firewall
     end
 
@@ -85,8 +84,8 @@ flowchart TB
 ### 架構重點
 
 - `Watch` 賣 deterministic 事實；`Pro` 賣群眾情境敘事加底層研究結論。
-- 群眾情境引擎是葉節點：讀 `ScenarioSeed`，輸出 `ContrarianSignal`，不能回寫 L1／L2／L5。
-- L4 是方向盤：先產生 hard-only plan，再決定是否接受 bounded tilt。
+- 群眾情境引擎是純敘事葉節點：讀 `ScenarioSeed`，輸出 `ContrarianSignal` 只流向 Pro 報告與稽核，不能回寫 L1／L2／L4／L5。
+- L4 是方向盤：只吃 ScoreCard 產生 hard-only plan 或 NO_ACTION，不接收任何 tilt。
 
 ---
 
@@ -99,25 +98,25 @@ flowchart LR
         L1["L1 ETF Data Book<br/>deterministic ingest<br/>price / NAV / 折溢價 / 追蹤誤差 / 殖利率 / freshness"]
         L2["L2 Deterministic Scorecard<br/>trend / fundamental / valuation / catalyst / risk"]
         HardPlan["Hard-only RebalancePlan"]
-        L4["L4 Portfolio Manager<br/>hard_plan first<br/>gate / clamp / threshold-flip"]
+        L4["L4 Portfolio Manager<br/>ScoreCard only<br/>hard-only plan / NO_ACTION"]
         L5["L5 FinOps & Execution<br/>Stripe earn / spend<br/>Value-of-Information gate"]
         L6["L6 Audit & Operational P&L<br/>Full provenance / replay / P&L"]
         L1 --> L2 --> HardPlan --> L4 --> L5 --> L6
     end
 
-    subgraph FaceLane["FACE 側軌"]
+    subgraph FaceLane["FACE 側軌（純敘事）"]
         direction LR
         Seed["ScenarioSeed<br/>read-only, frozen, ordinal buckets"]
         L3["L3 Crowd Scenario Engine<br/>N=20-50 synthetic personas<br/>LLM 只寫文字"]
-        Signal["ContrarianSignal<br/>bounded scalar [-1,+1]<br/>non-authoritative"]
+        Signal["ContrarianSignal<br/>narrative annotation [-1,+1]<br/>non-authoritative"]
         Seed -.-> L3 -.-> Signal
     end
 
-    Tilt["TiltProvenance<br/>guardrail <= 2pp"]
+    ProReport["Pro 報告<br/>敘事＝產品"]
 
     L1 -.->|"projection only"| Seed
-    Signal -.->|"one gate + clamp only"| L4
-    L4 --> Tilt --> L6
+    Signal -.->|"narrative only, NO write-back"| ProReport
+    Signal -.->|"record only"| L6
 ```
 
 ### 六層責任
@@ -126,8 +125,8 @@ flowchart LR
 |---|---|---|---|
 | L1 ETF Data Book | 權威 | 擷取、正規化、標記 freshness、產生 DataBook / ScenarioSeed | 做投資結論 |
 | L2 Deterministic Scorecard | 權威 | 以透明公式產生 scorecard 與 hard signals | 讓 LLM 心算 |
-| L3 Crowd Scenario Engine | 非權威 | 產出二階反應鏈敘事、人格樣本、bounded modifier | 決定價格、權重、支出、下單 |
-| L4 Portfolio Manager | 權威 | hard-only plan、gate、clamp、NO_ACTION、tilt provenance | 讓 modifier 創造或翻轉動作 |
+| L3 Crowd Scenario Engine | 非權威 | 產出二階反應鏈敘事、人格樣本、非權威 modifier 標註 | 決定價格、權重、支出、下單，或回寫任何決策層 |
+| L4 Portfolio Manager | 權威 | 只吃 ScoreCard 產 hard-only plan、NO_ACTION、decision provenance | import 或接收 ContrarianSignal |
 | L5 FinOps & Execution | 權威 | Stripe earn/spend、refused spend、VoI gate | 被 crowd signal 主觸發 |
 | L6 Audit & Operational P&L | 權威 | provenance、replay、Operational P&L、免責聲明 | 儲存敏感 token |
 
@@ -161,19 +160,18 @@ sequenceDiagram
 
     alt Pro 報告且 VoI 允許跑情境
         L3->>L3: seeded personas + LLM reaction text
-        L3-->>L4: ContrarianSignal(is_authoritative=false)
+        L3-->>L6: CrowdScenarioReport + ContrarianSignal (record only, non-authoritative)
     else 低價值事件或 demo fallback
-        L3-->>L4: no_tilt / replay / skipped
+        L3->>L3: replay / skipped (no LLM)
     end
 
-    L4->>L4: hard-only first
-    L4->>L4: two-key gate + bounded clamp
-    L4->>L4: zero-modifier rerun
+    Note over L3,L4: L4 不 import、不接收 ContrarianSignal（接線防火牆）
+    L4->>L4: build plan from ScoreCard only (no modifier)
 
-    alt hard-only 也支持同方向動作
-        L4-->>L6: RebalancePlan + TiltProvenance
-    else 只有 crowd tilt 才觸發
-        L4-->>L6: NO_ACTION + threshold-flip reason
+    alt hard-only plan 跨過門檻
+        L4-->>L6: RebalancePlan + DecisionProvenance
+    else 在容差內
+        L4-->>L6: NO_ACTION + hard-only reason
     end
 
     L5->>L5: deterministic Value-of-Information gate
@@ -212,11 +210,13 @@ flowchart LR
         direction TB
         TypeGuard["Type guard<br/>no price / NAV / yield / weight / cap fields"]
         FlagGuard["Flag guard<br/>assert is_authoritative=false"]
+        WireGuard["Wiring guard<br/>L4 import graph 無 L3/Signal"]
         Signal["ContrarianSignal<br/>modifier in [-1,+1]<br/>is_authoritative=false"]
-        TypeGuard --> FlagGuard --> Signal
+        TypeGuard --> FlagGuard --> WireGuard --> Signal
     end
 
-    PM["L4 Portfolio Manager"]
+    ProReport["Pro 報告<br/>敘事＝產品"]
+    L4Decision["L4 決策路徑<br/>ScoreCard only（不接 Signal）"]
     Audit["L6 Audit<br/>record only"]
     Reject["Schema violation<br/>abort / strip / fail closed"]
 
@@ -225,8 +225,9 @@ flowchart LR
     Aggregate --> TypeGuard
     TypeGuard -->|"forbidden numeric/action field"| Reject
     FlagGuard -->|"flag not false"| Reject
-    Signal -.->|"advisory only"| PM
-    Signal -->|"provenance"| Audit
+    Signal -.->|"narrative only, NO write-back"| ProReport
+    Signal -->|"record only"| Audit
+    WireGuard --x L4Decision
 ```
 
 ### 防火牆不變式
@@ -238,50 +239,37 @@ flowchart LR
 | L3 只讀 frozen `ScenarioSeed` | 無 setter，輸入已分桶 |
 | `is_authoritative` 永遠為 false | schema const + runtime assert |
 | 人格文字不得帶入數字決策 | forbidden-output scan / numeric-token strip |
+| L4 決策路徑不接收 `ContrarianSignal` | L4 import graph grep；`build_rebalance_plan` 簽章只吃 `ScoreCard` |
 
 ---
 
-## 6. Portfolio Manager 消費規則
+## 6. Portfolio Manager 決策規則（純硬數據，無 modifier 消費）
 
 ```mermaid
 flowchart TD
-    Start["收到 ScoreCard 與可選 ContrarianSignal"]
-    HardOnly["Step 1: hard-only plan<br/>modifier invisible"]
+    Start["收到 ScoreCard<br/>（無 ContrarianSignal 參數）"]
+    HardOnly["build_plan_from_scorecard<br/>唯一輸入 ScoreCard"]
     HardEmpty{"hard_plan 為空<br/>或在容差內？"}
-    NoActionEarly["NO_ACTION<br/>讀 modifier 前結束"]
-    Gate["Step 2: two-key gate<br/>至少 2 個不同 factor family 同向<br/>modifier 同符號"]
-    GatePass{"gate 通過？"}
-    NoTilt["不套用 tilt<br/>保留 hard-only plan"]
-    Clamp["Step 3: bounded clamp<br/>tilt <= min(2pp, 1x hard_delta)"]
-    Rerun["Step 4: zero-modifier rerun<br/>同一 min-trade floor"]
-    Flip{"只有加 tilt<br/>才會觸發動作？"}
-    Rollback["回退 NO_ACTION<br/>threshold-flip 防護"]
-    Final["RebalancePlan<br/>附獨立硬數據理由"]
-    Provenance["TiltProvenance<br/>hard_delta / hard_signals / modifier / applied_tilt"]
+    NoAction["NO_ACTION<br/>附 hard-only 理由"]
+    Final["RebalancePlan<br/>final_delta = hard_delta<br/>附兩個獨立硬理由"]
+    Provenance["DecisionProvenance<br/>scorecard_id / hard_delta / hard_signals"]
 
     Start --> HardOnly --> HardEmpty
-    HardEmpty -->|"是"| NoActionEarly
-    HardEmpty -->|"否"| Gate --> GatePass
-    GatePass -->|"否"| NoTilt
-    GatePass -->|"是"| Clamp
-    NoTilt --> Rerun
-    Clamp --> Rerun
-    Rerun --> Flip
-    Flip -->|"是"| Rollback
-    Flip -->|"否"| Final --> Provenance
+    HardEmpty -->|"是"| NoAction
+    HardEmpty -->|"否"| Final --> Provenance
 ```
 
 ### PM 設計解讀
 
-- 群眾 modifier 只能放大硬數據已允許的方向，不能創造動作、翻轉方向或突破 hard band。
-- `NO_ACTION` 必須能在讀取 modifier 前產生，否則 L3 會暗中成為決策主因。
-- zero-modifier CI 是可機器檢測的核心：把 modifier 歸零後，動作仍需同方向成立並跨過門檻。
+- 群眾 modifier 完全不進入 L4；RebalancePlan 只由 ScoreCard 決定，按建構即可獨立辯護。
+- L4 根本不接收 modifier，故不存在「L3 暗中成為決策主因」的可能；NO_ACTION 與動作皆純硬數據。
+- 接線 CI 是可機器檢測的核心：斷言 L4 import graph 中無 L3／ContrarianSignal、`build_rebalance_plan` 簽章只吃 ScoreCard。
 
 ---
 
 ## 7. 資料契約與核心物件
 
-v3 schema 從三份擴成四份：`ETFResearchReport`、`RebalancePlan`、`OperationalReceipt`、`CrowdScenarioReport`。同時新增 `ScenarioSeed`、`ContrarianSignal`、`TiltProvenance` 作為防火牆與可稽核性的關鍵物件。
+v3 schema 從三份擴成四份：`ETFResearchReport`、`RebalancePlan`、`OperationalReceipt`、`CrowdScenarioReport`。同時新增 `ScenarioSeed`、`ContrarianSignal`、`DecisionProvenance` 作為防火牆與可稽核性的關鍵物件。**群眾層輸出（`ContrarianSignal`）只連報告與稽核，不連 `RebalancePlan`。**
 
 ```mermaid
 erDiagram
@@ -291,8 +279,7 @@ erDiagram
     SCENARIO_SEED ||--o| CROWD_SCENARIO_REPORT : rehearses
     CROWD_SCENARIO_REPORT ||--|| CONTRARIAN_SIGNAL : emits
     SCORECARD ||--o| REBALANCE_PLAN : justifies
-    CONTRARIAN_SIGNAL }o--o| REBALANCE_PLAN : bounded_tilt
-    REBALANCE_PLAN ||--o| TILT_PROVENANCE : records
+    REBALANCE_PLAN ||--o| DECISION_PROVENANCE : records
     SUBSCRIPTION ||--o{ OPERATIONAL_RECEIPT : revenue
     TOOL_SERVICE ||--o{ OPERATIONAL_RECEIPT : cost
     OPERATIONAL_RECEIPT }o--|| OPERATIONAL_PNL : rolls_up
@@ -351,17 +338,16 @@ erDiagram
         string scorecard_id FK
         string action
         float hard_delta_pp
-        float final_delta_pp
         string no_action_reason
     }
 
-    TILT_PROVENANCE {
+    DECISION_PROVENANCE {
         string id PK
         string decision_id FK
-        string seed_id
+        string scorecard_id
         float hard_delta_pp
-        float tilt_pp_applied
-        string narrative_digest
+        string hard_signals
+        string action
     }
 
     SUBSCRIPTION {
@@ -398,8 +384,8 @@ erDiagram
 ### Schema-first 更新點
 
 - `CrowdScenarioReport` 根層 `is_authoritative` 必須是 `false`，且 `additionalProperties:false`。
-- `ContrarianSignal` 的唯一決策純量是 `contrarian_modifier ∈ [-1,+1]`，且也必須是非權威。
-- `RebalancePlan` 必須保存 hard-only 理由、`NO_ACTION` 理由與 tilt provenance。
+- `ContrarianSignal` 的 `contrarian_modifier ∈ [-1,+1]` 是**非權威報告標註**，不進入任何決策路徑。
+- `RebalancePlan` 由 ScoreCard 單獨產生，保存 hard-only 理由與 `NO_ACTION` 理由（無 tilt provenance）。
 - `OperationalReceipt` 必須能表示 `spend`、`earn`、`refused_spend`、`blocked`、`manual_review`。
 - 所有 schema 不得儲存敏感 token、明文金鑰或 payment credential。
 
@@ -485,7 +471,7 @@ flowchart LR
 
 ### FinOps 防火牆
 
-- `contrarian_modifier` 不能成為支出主觸發，只能作 tie-breaker。
+- `contrarian_modifier` 完全不參與支出決策（連 tie-breaker 都不是）；spend 純由 deterministic VoI gate 把關。
 - 付費報告是否值得跑，由 deterministic VoI gate 判斷。
 - Refused spend 是 demo 的核心 beat：代理不只會花錢，也能在不值得時拒絕花錢。
 
@@ -502,7 +488,7 @@ flowchart TD
         D3["Day 3<br/>scorecard + cost optimizer + unit tests"]
         D4["Day 4<br/>Stripe SPEND + REFUSED SPEND"]
         D5["Day 5<br/>Stripe EARN + P&L"]
-        D6["Day 6<br/>firewall + PM tilt + zero-modifier CI<br/>CORE FROZEN"]
+        D6["Day 6<br/>firewall + hard-only PM + 接線 CI<br/>CORE FROZEN"]
         D1 --> D2 --> D3 --> D4 --> D5 --> D6
     end
 
@@ -534,7 +520,7 @@ flowchart TD
 | 0:24-0:38 | SPEND pre-staged | agent provision 工具，成本進 P&L |
 | 0:38-0:50 | REFUSED SPEND live error path | Stripe cap 硬拒，代理 NO_ACTION |
 | 0:50-0:78 | 情境引擎 WOW replay | `is_authoritative=false`，可稽核但未驗證 |
-| 0:78-0:96 | Hard cut 回引擎 | 刪掉群眾面板後，同一動作仍成立 |
+| 0:78-0:96 | Hard cut 回引擎 | 秀 import graph：L4 從未接收群眾層（根本沒接進來） |
 | 0:96-0:110 | viability close | before/after P&L 與免責聲明 |
 
 ---
@@ -584,8 +570,8 @@ flowchart LR
 
 | 風險 | 更新後架構回應 |
 |---|---|
-| 防火牆 gate 太鬆 | 兩個不同 factor family、bounded clamp、zero-modifier CI |
-| modifier 影響支出 | FinOps 由 VoI gate 主導，modifier 最多 tie-breaker |
+| 防火牆回寫風險 | FACE 純敘事側軌，modifier 不進 L4；接線 CI（L4 import graph 無 L3／Signal） |
+| modifier 影響支出 | spend 純由 VoI gate；modifier 不參與（連 tie-breaker 都不是） |
 | demo 三筆 Stripe 失敗 | live/replayed 標示、pre-staged spend、fallback recording |
 | headline 敘事被誤讀成預測 | 用「情境推演／壓力測試」，禁「預測／預報」 |
 | 法規曝險 | 主要防線是非個別化、test-mode、零下單、免責，不是防火牆 |
@@ -599,10 +585,10 @@ flowchart LR
 |---|---|
 | 群眾引擎升為產品門面，但非權威 | 增加差異化，同時避免污染核心決策 |
 | Core-B 六層架構 | 把 FACE 與 ENGINE 的邊界顯性化 |
-| `ContrarianSignal` typed output | 讓 L3 只能以有界、可稽核、非權威物件進入 L4 |
-| hard-only first | 防止群眾敘事成為動作唯一原因 |
-| threshold-flip 防護 | 若只有 crowd tilt 才讓動作跨門檻，回退 NO_ACTION |
-| zero-modifier CI | 把「移除群眾仍成立」變成可測不變式 |
+| `ContrarianSignal` typed output | 讓 L3 只能輸出有界、可稽核、非權威物件，且只連報告與稽核、不進 L4 |
+| hard-only only | L4 只吃 ScoreCard，群眾敘事永不進決策 |
+| 接線防火牆 | L4 不 import／不接收 ContrarianSignal，結構上零連線 |
+| 接線 CI | 把「L4 根本沒接群眾層」變成可測不變式（import graph） |
 | VoI gate 控制付費報告 | 讓 spend 決策仍由硬資料與預算控制 |
 
 ---
@@ -614,7 +600,7 @@ flowchart LR
 Core-B 成立的條件是三個可檢查承諾：
 
 - 群眾層只輸出 `ContrarianSignal`，且 `is_authoritative=false`。
-- L4 的每個非零 RebalancePlan 都能在 modifier 歸零後由硬數據同方向成立。
+- L4 的每個 RebalancePlan 只由 ScoreCard 決定；群眾層從未進入決策路徑（接線 CI 可證）。
 - L5 的 spend 由 deterministic VoI gate 與 Stripe 硬上限控制，群眾層不能主觸發支出。
 
-因此，這份架構分析的結論是：v3 的可行性比舊版更有 presentation 優勢，但也更依賴防火牆、用語、demo 紀律與主動揭露。只要 Day 6 前凍結 Core（防火牆、PM tilt、P&L、zero-modifier CI），即使最後砍掉情境動畫，StackFund 仍保有 earn／spend／run real operations 的核心說服力。
+因此，這份架構分析的結論是：v3 的可行性比舊版更有 presentation 優勢，但也更依賴防火牆、用語、demo 紀律與主動揭露。只要 Day 6 前凍結 Core（防火牆、hard-only PM、P&L、接線 CI），即使最後砍掉情境動畫，StackFund 仍保有 earn／spend／run real operations 的核心說服力。

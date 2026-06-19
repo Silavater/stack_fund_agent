@@ -4,13 +4,15 @@
 |---|---|
 | **專案名稱** | StackFund — Autonomous Taiwan ETF Research Desk |
 | **產品定位** | 自主經營的台股 ETF 研究／顧問微型事業;門面為「群眾情境推演引擎」（Agentic Crowd-Scenario Research） |
-| **文件版本** | v3.0（採用 Core-B 架構:群眾情境引擎升為產品門面,並以防火牆與 deterministic 主幹隔離） |
+| **文件版本** | v3.1（Core-B 架構;**FACE 改為純敘事側軌:群眾情境層不回寫 L4,完全不參與配置決策**） |
 | **日期** | 2026-06-19｜截止 2026-06-30 |
 | **比賽** | Hermes Agent Accelerated Business Hackathon（NVIDIA × Stripe × Nous Research） |
 | **主題對齊** | 代理能 **earn／spend／run real operations**;評分:usefulness／viability／presentation |
-| **設計準則** | deterministic Python 算所有數字;LLM 只解讀衝擊與寫敘事;NO_ACTION 為設計亮點;群眾情境層**非權威**、碰不到任何數字 |
+| **設計準則** | deterministic Python 算所有數字;LLM 只解讀衝擊與寫敘事;NO_ACTION 為設計亮點;**群眾情境層為純敘事側軌:非權威、碰不到任何數字、不進入任何決策路徑** |
 
 > 本版整併了「Core-B 設計」。主體（§1–§9）為 exec 高度的可行性論證;群眾情境引擎的工程契約、schema、人格庫、demo runbook、逐日建置計畫等深度細節收於**附錄 A**。Core-B 設計已通過五項對抗性壓測（結論皆 holds_with_changes），其 required_fix 已折入本文。
+>
+> **v3.1 變更（FACE 純敘事側軌）**:FACE 由舊版「受護欄約束、可回寫 ±2pp 微調」改為「**純敘事側軌**」——群眾層只產敘事與非權威標註,**不再回寫 L4、不參與任何配置決策**;隨之**移除** two-key gate、bounded clamp、threshold-flip、TiltProvenance 與 zero-modifier 重跑,改以更強的「**決策路徑不接線**」結構保證取代（L4 不 import、不接收 ContrarianSignal）。動機:舊版防火牆已嚴格到 modifier 對結果近乎零影響,與其用複雜機關「安全容納」一個無實效的回寫,不如讓門面結構上完全不碰方向盤——工程更省、防火牆故事更強。
 
 ---
 
@@ -22,11 +24,11 @@ StackFund 是一個由 **Hermes** 代理自主經營的**台股 ETF 研究台**,
 2. **Spend** — 用 **Stripe Skills for Hermes** 自行 provision 並付費營運所需的資料／運算／SaaS 堆疊,並以 deterministic optimizer 在固定預算內再平衡這個「工具投組」。
 3. **Earn** — 用 **Stripe billing** 向訂閱者收費販售研究,產生真實營收;以 before／after 的 **Operational P&L** 證明這門代理生意能自負盈虧。
 
-**產品門面（headline）是「群眾情境推演引擎」**:對一則已算好的市場事件,用 20–50 個台灣散戶**合成人格**演練二階反應鏈（「若升息 → 存股族照扣不動 → 當沖客先停損電子權值 → 賣壓集中 0050 → 0056 抗跌敘事 → 資金二次輪動」），這是相對「又一個 TWSE 儀表板」的差異化。但它被**防火牆**嚴格隔離:**門面（FACE）可以改變我們講什麼故事、並在硬數據已允許的方向內把某檔 ETF 權重微調至多 ±2pp;它永遠不能決定任何數字、不能成為任何動作的唯一理由、碰不到任何算數字的函式。方向盤永遠鎖在引擎（Stripe earn／spend 的 deterministic 主幹）上,不鎖在門面上。**
+**產品門面（headline）是「群眾情境推演引擎」**:對一則已算好的市場事件,用 20–50 個台灣散戶**合成人格**演練二階反應鏈（「若升息 → 存股族照扣不動 → 當沖客先停損電子權值 → 賣壓集中 0050 → 0056 抗跌敘事 → 資金二次輪動」），這是相對「又一個 TWSE 儀表板」的差異化。但它被**防火牆**嚴格隔離:**門面（FACE）只能改變我們講什麼故事——它是純敘事側軌,只把敘事與一個非權威標註送進 Pro 報告與稽核紀錄,完全不回寫決策層、不參與配置;它永遠不能決定任何數字、不能影響任何動作、碰不到任何算數字的函式。方向盤永遠鎖在引擎（Stripe earn／spend 的 deterministic 主幹）上,不鎖在門面上。**
 
 **結論:技術可行,建議執行（Go），附五項前置條件。** 最關鍵的設計判斷:**Stripe 負責「事業金流」（花錢買工具、向客戶收費），不負責「證券下單」**;台股 ETF 是研究與服務的**標的**,StackFund 全程不下任何證券委託單。三個贊助平台（Hermes 編排、Stripe earn＋spend、NemoClaw 安全）各司其職,完整命中「earn＋spend＋real operations」。
 
-**主動揭露的三條誠實紅線（設計成熟度,先講不閃）：**（1）**可重現 ≠ 已驗證**——情境引擎是合成排練,價值在 risk-scenario 覆蓋,非預測準確度;（2）**群眾 modifier 並不優於既有 contrarian 分數**——產品價值釘在「二階反應鏈**敘事**」,不在那個純量;（3）**真正的法規曝險在「收費＋指名＋方向性」的 RebalancePlan**（在主幹上）,靠 test-mode／無費／零下單守 safe harbor。主要風險集中在台灣金融法規、資料來源穩定度與 demo 可信度,而非「技術是否存在」。五項前置條件詳見 §8。
+**主動揭露的三條誠實紅線（設計成熟度,先講不閃）：**（1）**可重現 ≠ 已驗證**——情境引擎是合成排練,價值在 risk-scenario 覆蓋,非預測準確度;（2）**群眾 modifier 不進入任何決策,也不宣稱優於既有 contrarian 分數**——它只是報告中的情境參考標註,產品價值釘在「二階反應鏈**敘事**」,不在那個純量;（3）**真正的法規曝險在「收費＋指名＋方向性」的 RebalancePlan**（在主幹上）,靠 test-mode／無費／零下單守 safe harbor。主要風險集中在台灣金融法規、資料來源穩定度與 demo 可信度,而非「技術是否存在」。五項前置條件詳見 §8。
 
 ---
 
@@ -56,7 +58,7 @@ StackFund 是一個**會自己賺錢、自己付營運成本、自己做研究**
 | 方案 | Stripe 價（demo） | 內容 |
 |---|---|---|
 | **Watch（免費）** | NT$0 | 每日數字卡:price／NAV／折溢價／殖利率／freshness。純 deterministic 事實,刻意商品化。 |
-| **Pro（headline SKU）** | ~NT$299/月 | 單事件群眾情境報告:二階反應鏈敘事＋5–8 個人格樣本＋`contrarian_modifier`（標「情境參考訊號,非投資建議」）＋其下 deterministic 研究結論。**這就是產品。** |
+| **Pro（headline SKU）** | ~NT$299/月 | 單事件群眾情境報告:二階反應鏈敘事＋5–8 個人格樣本＋`contrarian_modifier`（標「情境參考訊號,非投資建議,**不影響本報告之 deterministic 配置結論**」）＋其下 deterministic 研究結論。**這就是產品。** |
 | **Desk（roadmap,非 MVP）** | ~NT$999/月 | Pro＋事件觸發排程＋跨 ETF 輪動鏈＋原始擁擠時間序列。 |
 
 情境引擎消耗的 LLM 推論是一筆**真實、變動、每報告**的算力成本,由 agent 經 Stripe Skills 付費 ⇒ 乾淨單位經濟學;低價值事件時 agent 可判定「不值得花這次推演成本」⇒ **被拒絕的支出**（最難忘的 demo beat）。
@@ -128,12 +130,12 @@ OpenShell 管「代理能否繞過正常執行路徑」、Stripe 管「金額硬
 
 ### 4.1 一句話契約
 
-> 群眾情境引擎可以改變**我們講什麼故事**,可以在硬數據**已允許的方向與帶寬內**把某檔 ETF 權重微調至多 **±2 個百分點**;它**永不能決定一個數字、永不能成為動作的唯一理由、永不能觸及任何計算數字的函式**。它是 FACE;deterministic 主幹是 ENGINE。
+> 群眾情境引擎可以改變**我們講什麼故事**,把敘事與一個非權威標註送進 Pro 報告與稽核;它**永不能決定一個數字、永不能影響任何動作、永不能回寫任何決策層、永不能觸及任何計算數字的函式**。它是純敘事 FACE;deterministic 主幹是 ENGINE,**兩者之間沒有任何從 FACE 流向 ENGINE 的邊**。
 
-### 4.2 六層骨架（│＝deterministic 主幹;┊＝advisory 單一純量）
+### 4.2 六層骨架（│＝deterministic 主幹;FACE 為純敘事側軌,無回寫邊）
 
 ```
-                    STACKFUND — Core-B 6-LAYER ARCHITECTURE
+              STACKFUND — Core-B 6-LAYER ARCHITECTURE（FACE 純敘事側軌）
   ┌────────────────────────────────────────────────────────────────────────┐
   │  L1  ETF DATA BOOK（deterministic ingest）                              │
   │  TWSE / TPEX / MOPS / Yahoo / news。算所有數字:price, NAV, 折溢價,      │
@@ -149,51 +151,56 @@ OpenShell 管「代理能否繞過正常執行路徑」、Stripe 管「金額硬
   │ fundamental / valuation / │    ║  seed → N=20–50 deterministic-RNG      ║
   │ catalyst / risk 子分數     │    ║  personas → LLM 只寫反應文字＋立場      ║
   │ Output ▶ ScoreCard        │    ║  → deterministic Python AGGREGATION    ║
-  └──────────┬────────────────┘    ║  → ONE bounded scalar                  ║
+  └──────────┬────────────────┘    ║  → ONE bounded scalar（純報告標註）     ║
              │ ScoreCard            ║ NO OASIS / NO Zep / NO server / 不算數字 ║
              │ (authoritative)      ║ Output ▶ ContrarianSignal              ║
-             │   ┌──────────────────╢  { narrative, persona_samples,          ║
-             │   │ ContrarianSignal ║    contrarian_modifier ∈ [-1,+1],       ║
-             │   │ is_authoritative ║    is_authoritative = FALSE }           ║
-             │   │  = FALSE  ┊┊┊┊┊▶ ╚════════════════════════════════════════╝
-             ▼   ▼ (advisory, 單一純量, 只經 ONE gate+clamp)
+             │                      ║  { narrative, persona_samples,          ║
+             │                      ║    contrarian_modifier ∈ [-1,+1],       ║
+             │                      ║    is_authoritative = FALSE }           ║
+             │                      ╚═══════════════╤════════════════════════╝
+             │              純敘事輸出,NO write-back │ 只流向↓
+             │             ┌──────────────────────────────────────────────┐
+             │             │ Pro 報告（敘事＝產品）＋ L6 稽核存證          │
+             │             │ 群眾層在此終止,對 L4 決策路徑 ZERO 邊         │
+             │             └──────────────────────────────────────────────┘
+             ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │  L4  PORTFOLIO MANAGER（主幹 — 方向盤）                                 │
-  │  先用 ScoreCard ALONE 建 hard_plan。再 IFF 兩把鑰匙 gate 通過才施加     │
-  │  bounded tilt。Clamp: |Δ_tilt| ≤ min(2.00pp, 1×Δ_hard) per ETF。       │
-  │  modifier 永不能創造動作、翻轉方向、突破 hard band。NO_ACTION 為一級輸出。│
-  │  Output ▶ RebalancePlan(+ tilt_provenance)                             │
+  │  僅用 ScoreCard 建 RebalancePlan。不 import、不接收 ContrarianSignal。   │
+  │  無 tilt／gate／clamp／threshold-flip。NO_ACTION 為一級輸出。            │
+  │  Output ▶ RebalancePlan（final_delta = hard_delta,純硬數據）           │
   └──────────┬─────────────────────────────────────────────────────────────┘
              │ RebalancePlan
              ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │  L5  FINOPS & EXECUTION（主幹）                                         │
   │  Stripe SPEND(provision, 硬上限)＋EARN(訂閱收款)。Value-of-Information   │
-  │  gate 決定是否值得跑付費報告。情境引擎對此層 ZERO 觸及。                 │
+  │  gate 決定是否值得跑付費報告。群眾層對此層 ZERO 觸及。                   │
   └──────────┬─────────────────────────────────────────────────────────────┘
              ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │  L6  AUDIT & OPERATIONAL P&L                                           │
-  │  記錄每個決策＋每次 modifier 使用的 FULL PROVENANCE。可重播。P&L。       │
+  │  記錄每個 deterministic 決策的 FULL PROVENANCE＋群眾報告存證。可重播。P&L│
   └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**關鍵結構事實**:L3 是側軌上的**葉節點**——資料流入（ScenarioSeed）、恰一個 typed 物件流出（ContrarianSignal），對 L1／L2／L5／L6 無任何外向邊（除 L6 記錄它輸出了什麼）。deterministic 市場情境（升息／電子權值回檔——合法地驅動數字）留在 L1／L2 主幹;只把**群眾／人格反應**切成 L3。
+**關鍵結構事實**:L3 是側軌上的純敘事**葉節點**——資料流入（ScenarioSeed）、輸出（CrowdScenarioReport＋ContrarianSignal）只流向 **Pro 報告與 L6 稽核**,對 L1／L2／**L4**／L5 **無任何外向邊**（L4 甚至不 import 它）。deterministic 市場情境（升息／電子權值回檔——合法地驅動數字）留在 L1／L2 主幹;只把**群眾／人格反應**切成 L3 側軌敘事。
 
-### 4.3 防火牆 — 四層強制（細節見 附錄 A.1–A.3）
+### 4.3 防火牆 — 五層強制（細節見 附錄 A.1–A.3）
 
 1. **型別層**:`ContrarianSignal` 上**不存在** price／nav／折溢價／yield／weight／cap 欄位 → 合約上回不了數字。
 2. **import 層**:L3 不 import 任何計算模組;CI guard `test_firewall_no_imports` grep import graph,違者 build fail。
 3. **輸入層**:L3 只拿 frozen `ScenarioSeed`（已分桶的 ordinal context,**人格永遠看不到原始數字**），無 setter 可呼叫。
 4. **flag 層**:`is_authoritative` 硬寫 False 並 assert。
+5. **接線層（取代舊版 zero-modifier CI,更強）**:L4 決策路徑**不 import、不接收** `ContrarianSignal`;CI guard 斷言 L4 的輸入型別只有 `ScoreCard`、import graph 中無 L3／`ContrarianSignal`。群眾層與方向盤之間**沒有任何連線**。
 
-即使 L3 內遭 prompt-injection,最多產出生動但錯的故事＋一個已被 clamp 到 [-1,+1] 的純量,對任何**已計算數字**造成**零**損害。
+即使 L3 內遭 prompt-injection,最多產出生動但錯的**故事**——因為它根本沒接到任何決策或計算路徑,對任何**已計算數字**與**任何動作**造成**零**損害。
 
-### 4.4 Portfolio Manager 如何消費（壓測修正版,細節見 附錄 A.3）
+### 4.4 Portfolio Manager 如何運作（純硬數據,細節見 附錄 A.3）
 
-L4 嚴格依序:**①硬數據計畫先行**（modifier 不可見;若 hard_plan 空／在容差內 → **NO_ACTION 在讀 modifier 前發出**）→ **②兩把鑰匙 gate**（須 ≥2 個來自 ≥2 個不同 factor family〔valuation／yield／trend／flows〕的獨立硬訊號同向,且 modifier 符號與硬方向相同,只放大不翻轉）→ **③bounded clamp**（`tilt ≤ min(2pp, 1×hard_delta)`，硬數據永遠主導）→ **④threshold-flip 防護**（把 tilt 歸零重跑,若只有加 tilt 才會觸發動作就**回退 NO_ACTION**）。
+L4 **只吃 ScoreCard**:`hard_plan = build_plan_from_scorecard(scorecard)`。若 hard_plan 空／在容差內 → **NO_ACTION**;否則輸出 `RebalancePlan(final_delta = hard_delta)`。**L4 不 import、不接收 `ContrarianSignal`,流程中沒有 tilt／gate／clamp／threshold-flip。** 群眾 modifier 在 Pro 報告與稽核中呈現,但不參與此層任何計算。
 
-**獨立可辯護性不變式（headline 可信度保證,可機器檢測）**:對 RebalancePlan 中每一個非零權重變動,存在一個**移除群眾後仍成立**的純硬數據解釋。**端到端 CI 不變式:把 modifier 歸零重跑,動作必須仍以同方向發生且跨過所有門檻,否則 reject。** 這就是「independently-justifiable-from-hard-data-alone」的字面可測形式。
+**獨立可辯護性不變式（headline 可信度保證,可機器檢測）**:RebalancePlan 中每一個非零權重變動,**按建構**就只有純硬數據解釋——因為群眾層從未進入決策路徑。**結構性 CI 不變式:斷言 L4 模組輸入型別只有 `ScoreCard`、import graph 中無 L3／`ContrarianSignal`,否則 reject。** 這比舊版「把 modifier 歸零重跑仍成立」**更強**:不是「歸零後仍成立」,而是「**根本沒接進來**」。
 
 ### 4.5 仍然正確的幾項判斷
 
@@ -216,7 +223,7 @@ L4 嚴格依序:**①硬數據計畫先行**（modifier 不可見;若 hard_plan 
 | Demo 形式 | 90–110 秒 live demo（硬上限 120 秒）;群眾引擎為情緒高峰,但 earn／spend／refused-spend 拿頭尾句與多數秒數 |
 | 對外依賴 | 依賴 Stripe 帳號資格、TWSE／Yahoo 資料可用性,需 Day 1 驗證 |
 
-**開發順序（防火牆＋Stripe FIRST）**:Day 1 驗 Stripe TW 雙流＋TWSE 可達 → 鎖四份 schema＋凍結 fixtures → deterministic scorecard＋optimizer → **Stripe SPEND＋REFUSED SPEND** → Stripe EARN → **防火牆契約＋PM tilt＋P&L（Day 6 結束 CORE FROZEN——之後即使砍門面 demo 仍可贏）** → 群眾情境引擎 scaffold＋bake → replay／非權威章／hard-cut → 最後包 NemoClaw 並錄 demo。逐日計畫見 附錄 A.11。
+**開發順序（防火牆＋Stripe FIRST）**:Day 1 驗 Stripe TW 雙流＋TWSE 可達 → 鎖四份 schema＋凍結 fixtures → deterministic scorecard＋optimizer → **Stripe SPEND＋REFUSED SPEND** → Stripe EARN → **防火牆契約＋hard-only PM＋P&L（Day 6 結束 CORE FROZEN——之後即使砍門面 demo 仍可贏）** → 群眾情境引擎 scaffold＋bake → replay／非權威章／hard-cut → 最後包 NemoClaw 並錄 demo。逐日計畫見 附錄 A.11。
 
 ---
 
@@ -242,7 +249,7 @@ L4 嚴格依序:**①硬數據計畫先行**（modifier 不可見;若 hard_plan 
 ## 7. 資源需求與時程（Core-B MVP 範圍）
 
 **IN — 不可移動 CORE（引擎,即使門面被砍也須 ship）**
-3 檔 ETF（0050／0056／00878,frozen fixtures,皆 Python 算）;ETFResearchReport／RebalancePlan／OperationalReceipt／CrowdScenarioReport schema;deterministic scorecard＋cost optimizer（硬上限／保留金）;**1 筆真實 Stripe EARN＋1 筆 SPEND＋1 筆 REFUSED SPEND**;**防火牆 code 強制**（`firewall_test.py` 斷言引擎絕不寫任何數字欄位）;PM 在護欄內讀 modifier、每動作附獨立硬數據理由;before／after P&L;NemoClaw 內執行;輸出附四層免責。
+3 檔 ETF（0050／0056／00878,frozen fixtures,皆 Python 算）;ETFResearchReport／RebalancePlan／OperationalReceipt／CrowdScenarioReport schema;deterministic scorecard＋cost optimizer（硬上限／保留金）;**1 筆真實 Stripe EARN＋1 筆 SPEND＋1 筆 REFUSED SPEND**;**防火牆 code 強制**（`firewall_test.py` 斷言群眾層絕不寫任何數字欄位、且 L4 import graph 無 L3／ContrarianSignal）;L4 純讀 ScoreCard 出計畫（不接收 modifier）、每動作附獨立硬數據理由;before／after P&L;NemoClaw 內執行;輸出附四層免責。
 
 **IN — 門面（signature beat,bolt-on,可降級）**
 **僅一個** pre-baked scenario `0056_cut`,N=30,seed=42,replay animation,非權威章。
@@ -250,7 +257,7 @@ L4 嚴格依序:**①硬數據計畫先行**（modifier 不可見;若 hard_plan 
 **OUT（明確不做）**
 live 多輪／多情境 swarm;任何 OASIS／Zep／Flask runtime;>1 scenario;N>50;真實下單／券商 API;收費個別化投顧;盤中 tick;槓桿／期貨 ETF;上百檔 ETF;ML 預測;歷史回測;per-user 記憶;A–E 護城河評級。
 
-**CUT-LINE（6/29 落後時）**:砍 replay animation,beat 5 改 static card;防火牆、PM tilt、其餘 beats 不動。**門面永不在關鍵路徑上。**
+**CUT-LINE（6/29 落後時）**:砍 replay animation,beat 5 改 static card;防火牆、hard-only PM、其餘 beats 不動。**門面永不在關鍵路徑上。**
 
 此範圍與「don't do」清單顯示已從過度設計收斂,範圍紀律良好,且刻意避開「真實下單」與「收費個別化投顧」兩個法規地雷。
 
@@ -264,7 +271,7 @@ live 多輪／多情境 swarm;任何 OASIS／Zep／Flask runtime;>1 scenario;N>5
 1. **Day 1 驗證 Stripe 雙向金流**:台灣帳號可「付費 provision 至少一個 SaaS」＋「對測試卡建立訂閱並收款」,決定 demo 走 `free_only` 或 `live_limited`。
 2. **Day 1 驗證台股資料層**:跑通 TWSE OpenAPI 取一檔 ETF 價量＋Yahoo 報價,確認 rate limit 與時效,補 `tw-stock-agent` 最小 fetcher。
 3. **scorecard 改公式推導**:在 optimizer 骨架就把分數從可觀測訊號算出來,杜絕「結論被輸入餵出來」（R5）。
-4. **防火牆契約落地**:`ContrarianSignal`（is_authoritative=false）＋四層強制＋PM 的 gate／clamp／threshold-flip＋**零-modifier CI 不變式**＋`firewall_test.py`,於 Phase 1 即就位（Day 6 凍結 CORE）。
+4. **防火牆契約落地**:`ContrarianSignal`（is_authoritative=false）＋五層強制（型別／import／輸入／flag／**接線**）＋**L4 純硬數據、不 import 也不接收 modifier**＋**接線 CI 不變式**（L4 import graph 無 L3／ContrarianSignal）＋`firewall_test.py`,於 Phase 1 即就位（Day 6 凍結 CORE）。
 5. **法規定位、用語 lexicon 與四層免責落地**:定位為研究／教育、不下任何證券委託單;敘事條件式語氣;demo runbook 含 Tier D 口播檢查項;`clean-room.md` 採誠實版。
 
 **Go／No-Go 檢查點（Phase 1）**:若 Day 1 無法在台灣帳號同時完成「至少一個真實付費 provision」與「至少一筆真實／測試模式收款」,即切換 `free_only`＋測試模式 demo,並向主辦確認 sandbox。**不要讓架構綁死在「台灣帳號一定能跑完整 earn＋spend」這個假設上。**
@@ -316,34 +323,30 @@ class ContrarianSignal:
 ```
 從 N 個人格立場到單一純量的聚合是 **deterministic Python**,非 LLM:`modifier = clamp(mean(stance_i) * crowding_factor, -1, +1)`,其中 `stance_i ∈ {-1,0,+1}` 由 rule-based、version-pinned 分類器解析 LLM 文字。**LLM 寫文字;Python 把文字變數字。**
 
-## A.2 硬禁止（四層強制）
+## A.2 硬禁止（五層強制）
 
-① **型別層**:`ContrarianSignal` 無任何數字欄位。② **import 層**:L3 不 import `l1_databook.compute`／`l2_scorecard`／`l4_portfolio.optimizer`／`l5_finops.stripe`;CI guard `test_firewall_no_imports` 違者 build fail。③ **輸入層**:L3 只拿 frozen `ScenarioSeed`,無 setter。④ **flag 層**:`is_authoritative` 硬寫 False 並 assert。
+① **型別層**:`ContrarianSignal` 無任何數字欄位。② **import 層**:L3 不 import `l1_databook.compute`／`l2_scorecard`／`l4_portfolio.optimizer`／`l5_finops.stripe`;CI guard `test_firewall_no_imports` 違者 build fail。③ **輸入層**:L3 只拿 frozen `ScenarioSeed`,無 setter。④ **flag 層**:`is_authoritative` 硬寫 False 並 assert。⑤ **接線層（取代舊版 zero-modifier CI）**:L4／L5 決策路徑**不 import、不接收** `ContrarianSignal`;CI guard 斷言 L4 輸入型別只有 `ScoreCard`、決策側 import graph 中無 L3 模組。群眾層與方向盤**零連線**。
 
-## A.3 Portfolio Manager 消費四步驟
+## A.3 Portfolio Manager 如何運作（純硬數據,無 modifier 消費）
 
-**Step 1 — 硬數據計畫先行（modifier 不可見）**:`hard_plan = build_plan_from_scorecard(scorecard)`。若空／在容差內 → **NO_ACTION 在讀 modifier 前發出**。
+**L4 只吃 ScoreCard**:`hard_plan = build_plan_from_scorecard(scorecard)`。若空／在容差內 → **NO_ACTION**;否則輸出 `RebalancePlan(final_delta = hard_delta)`。**無 two-key gate、無 bounded clamp、無 threshold-flip、無 tilt**——這些舊版機關因 modifier 不再進入 L4 而**全部移除**。
 
-**Step 2 — 兩把鑰匙 gate（正交性）**:tilt 只在以下皆成立才開:(a) hard 方向非零;(b) ≥2 個來自 **≥2 個不同、不重疊 factor family（valuation／yield／trend／flows）** 的獨立硬訊號同向（**不是兩個訊號名**,杜絕 trend 與 catalyst 共動的假獨立）;(c) modifier 符號與 hard 方向相同（只放大,不翻轉）。
-
-**Step 3 — bounded clamp（量級永遠由硬數據主導）**:
 ```python
-GUARDRAIL_PP = 2.00
-tilt_pp = signal.contrarian_modifier * min(GUARDRAIL_PP, 1.0*abs(hard_delta[t])) if gate(...) else 0.0
-delta_final = clamp_to_hard_band(hard_delta[t] + tilt_pp, scorecard.band[t])
-assert abs(delta_final - hard_delta[t]) <= GUARDRAIL_PP
-assert not signal.is_authoritative
+def build_rebalance_plan(scorecard: ScoreCard) -> RebalancePlan:
+    # 唯一輸入是 ScoreCard;簽章中不存在 ContrarianSignal 參數
+    hard_plan = build_plan_from_scorecard(scorecard)
+    if hard_plan.is_empty_or_within_tolerance():
+        return RebalancePlan(action="NO_ACTION", reason=hard_plan.why_flat())
+    return RebalancePlan.from_hard(hard_plan)   # final_delta == hard_delta,恆等
 ```
 
-**Step 4 — threshold-flip 防護（最關鍵）**:把 tilt 歸零、用同一條 min-trade floor 重跑 hard-only 計畫:**若只有加了 tilt 的計畫會觸發執行、hard-only 不會,則回退 NO_ACTION**。
-
-**獨立可辯護性不變式**:對每一個**被執行**的非零 `delta_final`,其 hard-only 版本也會被執行且跨過所有門檻。**端到端 CI:把 modifier 歸零重跑,動作必須仍同方向發生且跨門檻,否則 reject。**
+**獨立可辯護性不變式（結構性,可機器檢測）**:RebalancePlan 中每一個非零 `final_delta` 按建構即等於 `hard_delta`——群眾層從未進入決策路徑。**CI:斷言 `build_rebalance_plan` 簽章只接受 `ScoreCard`、L4 import graph 中無 L3／`ContrarianSignal`,否則 reject。** 取代舊版「modifier 歸零重跑仍成立」——現在由「**結構上不接線**」直接保證,更強更易測。
 
 ## A.4 SPEND 防火牆與 provenance（L6）
 
-付費報告／provisioning 由 **deterministic value-of-information 規則**（materiality＋spend-cap headroom,皆從硬輸入算）把關;`contrarian_modifier` **只能當 tie-breaker**,不能當主觸發。**CI 斷言:spend 決策不以 ContrarianSignal 為 primary trigger。**
+付費報告／provisioning 由 **deterministic value-of-information 規則**（materiality＋spend-cap headroom,皆從硬輸入算）把關;`contrarian_modifier` **完全不參與 spend 決策（連 tie-breaker 都不是）**。**CI 斷言:spend 決策路徑的 import graph 中無 `ContrarianSignal`／L3 模組。**
 
-每次 L4 決策寫一筆 `TiltProvenance`:`{decision_id, seed_id, rng_seed, ticker, hard_delta_pp, hard_signals[(名稱,值)], contrarian_modifier, gate_passed, tilt_pp_applied(≤2pp), final_delta_pp, is_authoritative(恆 False), narrative_digest(sha256)}`——**有界、可歸因、可重播**。demo dashboard line:「硬數據動作:+3.0pp 0056（valuation+yield+trend）│ 群眾微調:+1.4pp（群眾過熱、反向防禦）│ 在護欄內 ✓」。
+每次 L4 決策寫一筆純硬數據的 `DecisionProvenance`:`{decision_id, scorecard_id, ticker, hard_delta_pp, hard_signals[(名稱,值)], final_delta_pp(＝hard_delta_pp), action}`。群眾層**另寫分離的** `CrowdReportProvenance`:`{report_id, seed_id, rng_seed, contrarian_modifier, is_authoritative(恆 False), narrative_digest(sha256)}`,標明**僅供敘事稽核、不連結任何決策**。demo dashboard line:「硬數據動作:+3.0pp 0056（valuation+yield+trend）│ 群眾敘事(非權威,不參與配置):modifier=+0.42 fade_overbought」。
 
 ## A.5 crowd-scenario-skill 設計（clean-room）
 
@@ -447,7 +450,7 @@ G1 輸出白名單（只 narrative／樣本／立場計數／鏈／一個純量,
 - **Step D damping／clamp**:`completeness_factor = 1.0(full)/0.6(partial)`;`contrarian_modifier = clip(raw·factor, -1, +1)`;`no_tilt` band `[-0.15,+0.15]`（引擎自身的 NO_ACTION analogue）。
 - **worked example（00878 升息,seed=42,full）→ −0.37,interpretation=fade_overbought**,逐項可手算,為 regression fixture（實作者須能由 seed 42 重現 −0.37）。
 
-> **壓測 VALUE 重要揭露**:Step A 立場是**固定 archetype 先驗的 table lookup**＋jitter,**不讀** live crowding/hype/divergence;故此 modifier 作為決策訊號**未優於、甚至偏弱於**既有 contrarian 分數。**我們不宣稱 modifier 改善了決策**;它被防火牆刻意 neuter,價值釘在 reaction_chain 敘事。**改善方向（time-permitting）**:若要 modifier 帶決策邊際,人格立場須改為對 `provenance.inputs_read`（margin_balance、turnover_vs_avg、headline_repetition、price_5d_return）反應,而非 lookup。
+> **壓測 VALUE 重要揭露**:Step A 立場是**固定 archetype 先驗的 table lookup**＋jitter,**不讀** live crowding/hype/divergence。在 v3.1 純敘事側軌下,**此 modifier 完全不進入任何決策**,故「它是否優於既有 contrarian 分數」已不影響配置正確性——它只是 Pro 報告中的**情境參考標註**,價值釘在 reaction_chain 敘事。**我們明確不宣稱 modifier 改善決策,也不給它影響決策的機會。** 若未來要讓它帶決策邊際,須(a)改人格立場為對 `provenance.inputs_read`（margin_balance、turnover_vs_avg、headline_repetition、price_5d_return）反應而非 lookup,且(b)**另案重新評估是否解除接線防火牆**——非本版範圍。
 
 ## A.10 Demo 110 秒 runbook（唯一權威,單一累積時鐘,≤110s／硬上限 120s）
 
@@ -460,7 +463,7 @@ G1 輸出白名單（只 narrative／樣本／立場計數／鏈／一個純量,
 | 0:24–0:38 | SPEND（pre-staged） | agent provision 工具,receipt 上 P&L cost。**除一筆 held-back 外皆 pre-provisioned** |
 | 0:38–0:50 | **REFUSED SPEND（live error path）** | 第二次升級撞月度上限,Stripe API 硬拒 → NO_ACTION＋一行 deterministic 理由。徽章 SPEND REFUSED。 |
 | 0:50–0:78 | ★ 情境引擎 WOW（純 replay,封頂 28s） | 按 ENTER → `--replay` 載 `scenario_0056_cut.json`,<3s,零 LLM 零網路,animate 三階反應鏈。底部 boxed `contrarian_modifier=+0.42`＋紅章 `is_authoritative=FALSE`。口播:「固定、**可稽核**的情境推演,**不是預測,也未經回測**。」 |
-| 0:78–0:96 | HARD CUT 回引擎:防火牆現形 | PM view 列 deterministic 訊號＋群眾 modifier（標非權威）。0056 小幅 tilt,印**兩個獨立硬理由**。**當場把群眾面板刪掉,同一動作仍成立**。 |
+| 0:78–0:96 | HARD CUT 回引擎:防火牆現形 | PM view **只**列 deterministic 訊號,0056 動作印**兩個獨立硬理由**;群眾 modifier 僅在旁以非權威標籤陳列。**當場秀 import graph:L4 從未接收群眾層——不是「刪掉仍成立」,而是「根本沒接進來」**。 |
 | 0:96–0:110 | CLOSE:viability | before/after P&L:revenue−cost 為正（或近損益兩平,refused spend 護毛利）;免責可見;「賺錢、花錢、在不值得時拒絕花錢。」 |
 
 引擎佔 ~82s（~75%）並拿最後一句;門面 28s 為高峰。**反 cannibalization**:每 beat 計時 cue card;情境 beat 上限 28s,超時**剪 narration 不剪 content**。
@@ -476,7 +479,7 @@ G1 輸出白名單（只 narrative／樣本／立場計數／鏈／一個純量,
 | Day 3 (6/21) | deterministic scorecard（透明公式 R5）＋cost optimizer（硬上限/保留）;數字 unit test | 1.0 |
 | Day 4 (6/22) | **Stripe SPEND＋REFUSED SPEND**（cap-breach→結構化錯誤→NO_ACTION,最難 beat 早做） | 1.0 |
 | Day 5 (6/23) | Stripe EARN（訂閱＋test-mode 收款接 P&L）。引擎端到端可 demo（beats 1–4,7） | 0.75 |
-| Day 6 (6/24) | **防火牆契約＋PM tilt＋P&L**;gate/clamp/threshold-flip＋零-modifier CI 不變式;firewall_test.py。**CORE FROZEN** | 1.0 |
+| Day 6 (6/24) | **防火牆契約＋hard-only PM＋P&L**;五層強制＋**接線 CI 不變式**（L4 import graph 無 L3／ContrarianSignal）;firewall_test.py。**CORE FROZEN** | 1.0 |
 | Day 7 (6/25) | scenario engine scaffold:personas.md（30 人格＋先驗引用）、scenario_engine.py（RNG/tally/clamped 公式）。先 numbers-only | 1.0 |
 | Day 8 (6/26) | **BAKE＋LLM 人格文字**:每抽樣人格呼叫 Nemotron 一次;bake `scenario_0056_cut.json`;加 `--replay`/`--verify`;確認 byte-identical replay | 1.0 |
 | Day 9 (6/27) | replay 三階 animation、非權威章、情境推演 wording、hard-cut 轉 PM view;**static-card cut-line 演練就緒** | 1.0 |
@@ -500,7 +503,7 @@ G1 輸出白名單（只 narrative／樣本／立場計數／鏈／一個純量,
 
 | 壓測 | 發現（摘要） | 中和方式 | 殘餘風險 |
 |---|---|---|---|
-| **FW 防火牆** | gate 可能太鬆（假獨立）;tilt 量級可能動 P&L;spend 可能被 modifier 觸發;缺「零-modifier 重跑」字面檢查 | ≥2 個不同 factor family 訊號;tilt≤min(2pp,1×hard);threshold-flip 回退;spend 由 VoI gate、modifier 僅 tie-breaker;零-modifier CI 不變式 | **低**。需明確定義 factor family 正交性;GUARDRAIL_PP=2.00／N 仍須對部位規模佐證 |
+| **FW 防火牆** | （v3.0 發現）gate 可能太鬆（假獨立）;tilt 量級可能動 P&L;spend 可能被 modifier 觸發;缺「零-modifier 重跑」字面檢查 | **v3.1 結構性消解**:FACE 改純敘事側軌,modifier 不再進 L4——two-key gate／bounded clamp／threshold-flip／tilt **全移除**;改以**接線防火牆**（L4 不 import／不接收 ContrarianSignal,CI 斷言 import graph）＋spend 由 VoI gate 獨佔 | **低（較 v3.0 更低）**。風險面從「安全容納回寫」縮為「確保零連線」,可由 import-graph CI 機器檢測;殘留僅 L1／L2 主幹本身的部位規模佐證 |
 | **DEMO 可行性** | 兩版 choreography 衝突;真正 blowup 是三筆 Stripe;`--verify` live re-bake 重引非決定性;artifact 未存在 | 合一 runbook（單一時鐘 ≤110s）;標 live/replayed＋alt-tab;禁 live re-bake;static-card 一級 fallback;Day-8/11 gated | **中**。110s slack 近零,防 cannibalization 靠**排練紀律**;Day-8 bake／Day-11 錄影在關鍵路徑 |
 | **CREDIBILITY R5/R6** | headline 是 LLM 敘事,可重現≠正確;先驗 authored 非 observed;無回測 | 揭露 modifier 偏弱、價值釘敘事;每 archetype 附引用先驗;demo 給防火牆/NO_ACTION 同等權重、刪群眾後動作仍成立;口播「未經回測」 | **中（最誠實殘餘）**。敘事仍是未驗證 prose;合成先驗本質無法回測。守線靠 is_authoritative=false＋「情境推演非預測」＋坦承「這是 risk-scenario 覆蓋,非預測準確度」 |
 | **REGULATORY** | 「防火牆＝主要投顧防線」誤指;「零下單→操縱幾乎完全 defuse」過度宣稱;headline 化使「只是研究」更難維持 | 防線依 limb 重新指派;RebalancePlan 改非個別化示意;§155 拆交易型(完全)/資訊型(部分);新增 R2c;前瞻硬界線 | **中**。資訊型 limb 僅部分 defuse;demo（test-mode/無報酬/零下單）尚屬研究 safe harbor,但係定位 framing 非法律意見,上線需 counsel |
