@@ -447,8 +447,8 @@ flowchart LR
     subgraph Plans["Stripe 訂閱方案"]
         direction TB
         WatchPlan["Watch NT$0<br/>deterministic number card"]
-        ProPlan["Pro NT$299/月<br/>crowd scenario narrative"]
-        DeskPlan["Desk NT$999/月<br/>roadmap"]
+        ProPlan["Pro ~NT$299/月<br/>crowd scenario narrative"]
+        DeskPlan["Desk ~NT$999/月<br/>roadmap"]
     end
 
     subgraph Earn["EARN"]
