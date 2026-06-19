@@ -1,252 +1,367 @@
-# StackFund 架構分析（Mermaid）
+# StackFund 架構分析（Mermaid，Core-B 排版優化版）
 
 > 來源文件：`doc/StackFund_可行性報告.md`
 >
-> 本文件是架構整理稿，不覆蓋原可行性報告。內容僅根據來源文件抽象化，不額外查證外部平台最新狀態。
+> 本文件對齊可行性報告 v3.0「Core-B 架構定案版」。本次更新只整理 Mermaid 排版與可讀性，不加顏色、不改架構語意。
 
 ## 0. 撰寫假設與驗收標準
 
 ### 撰寫假設
 
-- StackFund 的產品定位是「台股 ETF 研究／教育決策支援」，不是受託操作，也不是收費證券投資顧問。
-- Stripe 在此架構中負責事業金流：訂閱收款、營運支出、SaaS provision，不負責證券下單。
-- Hermes 負責代理編排與跨 session 工作流；NVIDIA NemoClaw／OpenShell 負責執行邊界與安全控管。
-- 台股 ETF 研究資料由自訂 Hermes Skill 取得，設計參考 `AZNitro/tw-stock-agent` 的 skill 形式。
-- 計算類任務由 deterministic Python 或等價的確定性程式處理；LLM 只負責解讀、說明與報告撰寫。
+- StackFund 的主體是自主經營的台股 ETF 研究微型事業；產品門面是「群眾情境推演引擎」。
+- Stripe 只負責事業金流：訂閱、營運支出、SaaS provision、支出拒絕；不負責證券下單。
+- Core-B 的核心契約是 FACE / ENGINE 分離：群眾情境引擎是 FACE，deterministic Python 主幹是 ENGINE。
+- 群眾情境引擎只輸出敘事、人格樣本、反應鏈與一個非權威 `contrarian_modifier`；不得決定 price／NAV／yield／weight／spend-cap 等權威數字。
+- RebalancePlan 的每個非零動作，都必須在移除群眾 modifier 後仍能由硬數據獨立辯護。
 
 ### 驗收標準
 
-- 能看出 StackFund 的主要元件、外部依賴、信任邊界與資料流。
-- 每張圖只描述一個架構視角，避免單圖過大。
-- Mermaid 使用常見圖型：`flowchart`、`sequenceDiagram`、`erDiagram`、`stateDiagram-v2`。
-- 文件不新增原報告沒有要求的功能，只把既有設計轉成可維護的架構圖與說明。
+- 能看出 v3 從舊五層架構升級為 Core-B 六層架構。
+- 能看出 L3 群眾情境引擎是側軌葉節點，不回寫 L1／L2／L5。
+- 能看出 Portfolio Manager 的四步消費：hard-only first、two-key gate、bounded clamp、threshold-flip。
+- Mermaid 圖只做排版優化，保持原版樣式，不加顏色或 theme。
 
 ---
 
-## 1. 架構總覽
+## 1. 更新後可行性報告的架構判讀
 
-StackFund 是一個由代理經營的台股 ETF 研究事業。它同時處理三條主線：
-
-- 對客戶：產出台股 ETF 研究報告、配置建議與 NO_ACTION 判斷。
-- 對自己：管理資料、推論、資料庫、observability、報告遞送等營運成本。
-- 對平台：透過 Hermes、Stripe、OpenShell 把 agentic workflow、金流與安全邊界組合成真實營運 demo。
-
-```mermaid
-flowchart LR
-    subgraph CustomerSide["客戶與市場側"]
-        Subscriber["訂閱者"]
-        ETFMarket["台股 ETF 市場"]
-    end
-
-    subgraph Runtime["代理執行層"]
-        Hermes["Hermes Agent"]
-        ETFSkill["自訂 ETF 分析 Skill"]
-        DataBook["ETF Data Book"]
-        ScenarioEngine["Scenario Engine"]
-        ResearchManager["Research & Portfolio Manager"]
-        FinOps["FinOps & Execution"]
-        ReportDelivery["報告遞送"]
-    end
-
-    subgraph Safety["安全與治理層"]
-        OpenShell["NemoClaw / OpenShell Sandbox"]
-        Policy["filesystem / network / process / inference policy"]
-        StripeLimits["Stripe API 支出上限"]
-        AuditLog["Audit Log / Operational P&L"]
-    end
-
-    subgraph External["外部服務"]
-        TWSE["TWSE OpenAPI"]
-        TPEX["TPEX / MOPS"]
-        Yahoo["Yahoo Finance"]
-        News["Web / News"]
-        StripeBilling["Stripe Billing"]
-        StripeSkills["Stripe Skills for Hermes"]
-        SaaS["資料 / 推論 / DB / Observability SaaS"]
-    end
-
-    Subscriber -->|"訂閱付款"| StripeBilling
-    StripeBilling -->|"營收資料"| AuditLog
-    Subscriber <-->|"研究報告 / 訂閱服務"| ReportDelivery
-
-    Hermes --> ETFSkill
-    ETFSkill --> DataBook
-    DataBook --> ScenarioEngine
-    ScenarioEngine --> ResearchManager
-    ResearchManager --> ReportDelivery
-    ResearchManager -->|"研究建議或 NO_ACTION"| AuditLog
-
-    FinOps -->|"營運成本最佳化"| StripeSkills
-    StripeSkills -->|"provision / upgrade / downgrade"| SaaS
-    SaaS -->|"成本與使用量"| AuditLog
-
-    ETFMarket -.-> TWSE
-    ETFMarket -.-> TPEX
-    ETFMarket -.-> Yahoo
-    ETFMarket -.-> News
-
-    ETFSkill --> TWSE
-    ETFSkill --> TPEX
-    ETFSkill --> Yahoo
-    ETFSkill --> News
-
-    OpenShell --> Policy
-    Policy --> Hermes
-    Policy --> ETFSkill
-    Policy --> FinOps
-    StripeLimits --> StripeSkills
-    OpenShell --> AuditLog
-```
+| 分析面向 | v3 判讀 | 架構影響 |
+|---|---|---|
+| 產品門面 | Pro 方案賣二階反應鏈敘事，不是更強的數字 | 新增 Crowd Scenario FACE |
+| 主幹可信度 | 所有市場數字、權重、支出由 deterministic Python 算 | L1／L2／L4／L5 保持權威 |
+| 防火牆 | L3 只 emit typed object，不 import 計算或 Stripe 模組 | 需要 type、import、input、flag 四層控制 |
+| PM 消費方式 | modifier 只能在硬數據同方向、雙理由成立時微調 | L4 必須有 gate／clamp／zero-modifier CI |
+| 法規風險 | 防火牆是 correctness 控制，不是主要投顧防線 | 合規主線仍是非個別化、test-mode、零下單、免責 |
+| Demo 策略 | 群眾引擎拿 WOW beat，但 earn／spend／refused-spend 保持主軸 | runbook 標 live／replayed，禁 live re-bake |
 
 ---
 
-## 2. 五層主架構
+## 2. 系統總覽：FACE 搶眼，ENGINE 掌舵
 
-來源文件把系統整理成五層：ETF Data Book、Scenario Engine、Research & Portfolio Manager、FinOps & Execution、Audit & Operational P&L。這個分層的重點是把「研究產出」與「事業營運」放在同一個代理工作流內，但維持明確職責邊界。
+這張圖只保留高階系統邊界，細部物件關係交給後續圖表，避免總覽圖變成電路圖。
 
 ```mermaid
 flowchart TB
-    L1["1. ETF Data Book<br/>資料擷取、清洗、freshness 標記"]
-    L2["2. Scenario Engine<br/>市場情境、ETF 指標與風險修正"]
-    L3["3. Research & Portfolio Manager<br/>scorecard、配置建議、NO_ACTION"]
-    L4["4. FinOps & Execution<br/>Stripe earn / spend、工具成本最佳化"]
-    L5["5. Audit & Operational P&L<br/>收支紀錄、拒絕動作、免責聲明"]
+    subgraph Inputs["輸入與治理"]
+        direction LR
+        Subscriber["訂閱者"]
+        MarketSources["市場資料來源<br/>TWSE / TPEX / MOPS / Yahoo / News"]
+        StripeLayer["Stripe<br/>Billing / Skills / spend cap"]
+        Sandbox["NemoClaw / OpenShell<br/>sandbox policy"]
+    end
 
-    Sources["TWSE / TPEX / MOPS / Yahoo / News / 反指標情緒"]
-    Deterministic["確定性計算<br/>價格、淨值、折溢價、殖利率、權重、預算"]
-    LLM["LLM 解讀<br/>衝擊說明、研究敘事、客戶可讀報告"]
-    Controls["硬性控制<br/>Stripe API limit / OpenShell policy"]
+    subgraph Runtime["StackFund Runtime"]
+        direction TB
+        Boundary["受控代理執行邊界<br/>Hermes / Crowd / FinOps"]
+        Engine["ENGINE：deterministic 主幹<br/>ETF Data Book -> Scorecard -> Portfolio -> FinOps -> Audit/P&L"]
+        Face["FACE：非權威門面<br/>ScenarioSeed -> Crowd Scenario -> ContrarianSignal"]
+        Firewall["Core-B 防火牆<br/>advisory only / no authoritative numbers / no primary spend trigger"]
 
-    Sources --> L1
-    L1 --> Deterministic
-    Deterministic --> L2
-    L2 --> L3
-    LLM --> L3
-    L3 -->|"研究報告 / RebalancePlan"| L5
-    L4 -->|"OperationalReceipt"| L5
-    L5 -->|"P&L 與審計回饋"| L4
-    Controls --> L4
+        Boundary --> Engine
+        Engine -->|"frozen projection"| Face
+        Face -.->|"bounded modifier only"| Engine
+        Face --> Firewall
+    end
+
+    subgraph Outputs["產品與證據"]
+        direction LR
+        Watch["Watch 免費數字卡"]
+        Pro["Pro 群眾情境報告"]
+        Desk["Desk roadmap"]
+        PNL["Operational P&L<br/>before / after evidence"]
+        Watch --> Pro -.-> Desk
+        Pro --> PNL
+    end
+
+    Subscriber --> StripeLayer
+    MarketSources --> Boundary
+    StripeLayer --> Boundary
+    Sandbox --> Boundary
+    Engine --> Watch
+    Engine --> Pro
+    Engine --> PNL
 ```
 
-### 分層責任
+### 架構重點
 
-| 層級 | 主要責任 | 不應負責 |
-|---|---|---|
-| ETF Data Book | 擷取資料、標記時效、保留來源 | 做投資結論 |
-| Scenario Engine | 建立市場情境與 ETF 指標 | 自行編造缺失資料 |
-| Research & Portfolio Manager | 產出 scorecard、研究結論、NO_ACTION | 真實證券下單 |
-| FinOps & Execution | 管理 earn/spend、工具升降級與支出拒絕 | 繞過 Stripe 限額 |
-| Audit & Operational P&L | 記錄報告、收支、拒絕原因與免責聲明 | 儲存敏感 token 或明文金鑰 |
+- `Watch` 賣 deterministic 事實；`Pro` 賣群眾情境敘事加底層研究結論。
+- 群眾情境引擎是葉節點：讀 `ScenarioSeed`，輸出 `ContrarianSignal`，不能回寫 L1／L2／L5。
+- L4 是方向盤：先產生 hard-only plan，再決定是否接受 bounded tilt。
 
 ---
 
-## 3. 主要執行流程
+## 3. Core-B 六層架構
 
-這個流程展示一次完整營運循環：客戶訂閱、代理抓資料、計算 ETF 指標、產出研究、執行或拒絕營運支出，最後寫入 P&L。
+```mermaid
+flowchart LR
+    subgraph EngineMain["ENGINE 主幹"]
+        direction LR
+        L1["L1 ETF Data Book<br/>deterministic ingest<br/>price / NAV / 折溢價 / 追蹤誤差 / 殖利率 / freshness"]
+        L2["L2 Deterministic Scorecard<br/>trend / fundamental / valuation / catalyst / risk"]
+        HardPlan["Hard-only RebalancePlan"]
+        L4["L4 Portfolio Manager<br/>hard_plan first<br/>gate / clamp / threshold-flip"]
+        L5["L5 FinOps & Execution<br/>Stripe earn / spend<br/>Value-of-Information gate"]
+        L6["L6 Audit & Operational P&L<br/>Full provenance / replay / P&L"]
+        L1 --> L2 --> HardPlan --> L4 --> L5 --> L6
+    end
+
+    subgraph FaceLane["FACE 側軌"]
+        direction LR
+        Seed["ScenarioSeed<br/>read-only, frozen, ordinal buckets"]
+        L3["L3 Crowd Scenario Engine<br/>N=20-50 synthetic personas<br/>LLM 只寫文字"]
+        Signal["ContrarianSignal<br/>bounded scalar [-1,+1]<br/>non-authoritative"]
+        Seed -.-> L3 -.-> Signal
+    end
+
+    Tilt["TiltProvenance<br/>guardrail <= 2pp"]
+
+    L1 -.->|"projection only"| Seed
+    Signal -.->|"one gate + clamp only"| L4
+    L4 --> Tilt --> L6
+```
+
+### 六層責任
+
+| 層級 | 權威性 | 責任 | 不可做 |
+|---|---|---|---|
+| L1 ETF Data Book | 權威 | 擷取、正規化、標記 freshness、產生 DataBook / ScenarioSeed | 做投資結論 |
+| L2 Deterministic Scorecard | 權威 | 以透明公式產生 scorecard 與 hard signals | 讓 LLM 心算 |
+| L3 Crowd Scenario Engine | 非權威 | 產出二階反應鏈敘事、人格樣本、bounded modifier | 決定價格、權重、支出、下單 |
+| L4 Portfolio Manager | 權威 | hard-only plan、gate、clamp、NO_ACTION、tilt provenance | 讓 modifier 創造或翻轉動作 |
+| L5 FinOps & Execution | 權威 | Stripe earn/spend、refused spend、VoI gate | 被 crowd signal 主觸發 |
+| L6 Audit & Operational P&L | 權威 | provenance、replay、Operational P&L、免責聲明 | 儲存敏感 token |
+
+---
+
+## 4. 主要營運流程
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Subscriber as 訂閱者
+    actor User as 訂閱者
     participant Billing as Stripe Billing
     participant Hermes as Hermes Agent
-    participant Shell as OpenShell Sandbox
-    participant Skill as ETF 分析 Skill
-    participant Sources as 台股資料來源
-    participant Calc as Deterministic Engine
-    participant LLM as Nemotron / Hermes LLM
-    participant FinOps as FinOps Optimizer
+    participant Shell as OpenShell
+    participant L1 as ETF Data Book
+    participant L2 as Scorecard
+    participant L3 as Crowd Scenario FACE
+    participant L4 as Portfolio Manager
+    participant L5 as FinOps
     participant Stripe as Stripe Skills
-    participant Audit as Audit & P&L
+    participant L6 as Audit & P&L
 
-    Subscriber->>Billing: 建立訂閱或付款
-    Billing-->>Audit: 記錄營收事件
+    User->>Billing: Watch / Pro 訂閱或 test-mode 付款
+    Billing-->>L6: revenue receipt
 
-    Hermes->>Shell: 啟動受控研究工作流
-    Shell->>Skill: 允許符合 policy 的資料擷取
-    Skill->>Sources: 取得 ETF 價量、淨值、配息、新聞
-    Sources-->>Skill: 回傳資料與 freshness
-    Skill->>Calc: 計算折溢價、追蹤誤差、殖利率、scorecard
-    Calc-->>Hermes: 回傳結構化指標
-    Hermes->>LLM: 請求市場解讀與報告敘事
-    LLM-->>Hermes: 回傳研究說明
+    Hermes->>Shell: 啟動受控 workflow
+    Shell->>L1: 允許資料擷取
+    L1->>L2: DataBook + hard metrics
+    L1-->>L3: frozen ScenarioSeed only
+    L2-->>L4: hard signals + hard-only plan
 
-    alt ETF 配置需要調整
-        Hermes->>Audit: 寫入 RebalancePlan 與免責聲明
-    else 沒有足夠理由動作
-        Hermes->>Audit: 寫入 NO_ACTION 與理由
+    alt Pro 報告且 VoI 允許跑情境
+        L3->>L3: seeded personas + LLM reaction text
+        L3-->>L4: ContrarianSignal(is_authoritative=false)
+    else 低價值事件或 demo fallback
+        L3-->>L4: no_tilt / replay / skipped
     end
 
-    Hermes->>FinOps: 評估營運工具成本與預算
-    FinOps->>Stripe: 請求 provision / upgrade / downgrade
+    L4->>L4: hard-only first
+    L4->>L4: two-key gate + bounded clamp
+    L4->>L4: zero-modifier rerun
 
-    alt 支出在上限與白名單內
-        Stripe-->>FinOps: 交易成功
-        FinOps->>Audit: 寫入成本與 OperationalReceipt
-    else 超出預算或違反 policy
-        Stripe-->>FinOps: 拒絕或需要人工核可
-        FinOps->>Audit: 寫入 denied OperationalReceipt
+    alt hard-only 也支持同方向動作
+        L4-->>L6: RebalancePlan + TiltProvenance
+    else 只有 crowd tilt 才觸發
+        L4-->>L6: NO_ACTION + threshold-flip reason
     end
+
+    L5->>L5: deterministic Value-of-Information gate
+    L5->>Stripe: provision / upgrade / downgrade
+    alt 在 cap 與白名單內
+        Stripe-->>L5: spend receipt
+    else 超額或需人工核可
+        Stripe-->>L5: refused spend
+    end
+    L5-->>L6: OperationalReceipt
 ```
 
 ---
 
-## 4. 資料契約與核心物件
+## 5. 群眾情境防火牆
 
-來源文件建議先鎖三份 schema：`ETFResearchReport`、`RebalancePlan`、`OperationalReceipt`。下圖把它們與 ETF、資料快照、訂閱、工具服務的關係拆開，方便後續實作時對齊 JSON schema。
+```mermaid
+flowchart LR
+    Seed["ScenarioSeed<br/>frozen ordinal context<br/>no raw price setters"]
+
+    subgraph InputChecks["輸入 / import 檢查"]
+        direction TB
+        InputGuard["Input guard<br/>ScenarioSeed read-only"]
+        ImportGuard["Import guard<br/>no L1/L2/L4/L5 compute imports"]
+    end
+
+    subgraph CrowdLayer["L3 Crowd Scenario Engine"]
+        direction LR
+        Personas["Synthetic personas<br/>N=20-50"]
+        Reaction["LLM reaction text<br/>stance token only"]
+        Aggregate["Deterministic aggregate<br/>closed-vocab stance"]
+        Personas --> Reaction --> Aggregate
+    end
+
+    subgraph OutputChecks["輸出檢查"]
+        direction TB
+        TypeGuard["Type guard<br/>no price / NAV / yield / weight / cap fields"]
+        FlagGuard["Flag guard<br/>assert is_authoritative=false"]
+        Signal["ContrarianSignal<br/>modifier in [-1,+1]<br/>is_authoritative=false"]
+        TypeGuard --> FlagGuard --> Signal
+    end
+
+    PM["L4 Portfolio Manager"]
+    Audit["L6 Audit<br/>record only"]
+    Reject["Schema violation<br/>abort / strip / fail closed"]
+
+    Seed --> InputGuard --> Personas
+    ImportGuard -.-> Personas
+    Aggregate --> TypeGuard
+    TypeGuard -->|"forbidden numeric/action field"| Reject
+    FlagGuard -->|"flag not false"| Reject
+    Signal -.->|"advisory only"| PM
+    Signal -->|"provenance"| Audit
+```
+
+### 防火牆不變式
+
+| 不變式 | 檢查方式 |
+|---|---|
+| L3 不輸出權威市場或動作欄位 | `CrowdScenarioReport` / `ContrarianSignal` schema fail-closed |
+| L3 不 import 計算、Portfolio、Stripe 模組 | `test_firewall_no_imports` / import graph grep |
+| L3 只讀 frozen `ScenarioSeed` | 無 setter，輸入已分桶 |
+| `is_authoritative` 永遠為 false | schema const + runtime assert |
+| 人格文字不得帶入數字決策 | forbidden-output scan / numeric-token strip |
+
+---
+
+## 6. Portfolio Manager 消費規則
+
+```mermaid
+flowchart TD
+    Start["收到 ScoreCard 與可選 ContrarianSignal"]
+    HardOnly["Step 1: hard-only plan<br/>modifier invisible"]
+    HardEmpty{"hard_plan 為空<br/>或在容差內？"}
+    NoActionEarly["NO_ACTION<br/>讀 modifier 前結束"]
+    Gate["Step 2: two-key gate<br/>至少 2 個不同 factor family 同向<br/>modifier 同符號"]
+    GatePass{"gate 通過？"}
+    NoTilt["不套用 tilt<br/>保留 hard-only plan"]
+    Clamp["Step 3: bounded clamp<br/>tilt <= min(2pp, 1x hard_delta)"]
+    Rerun["Step 4: zero-modifier rerun<br/>同一 min-trade floor"]
+    Flip{"只有加 tilt<br/>才會觸發動作？"}
+    Rollback["回退 NO_ACTION<br/>threshold-flip 防護"]
+    Final["RebalancePlan<br/>附獨立硬數據理由"]
+    Provenance["TiltProvenance<br/>hard_delta / hard_signals / modifier / applied_tilt"]
+
+    Start --> HardOnly --> HardEmpty
+    HardEmpty -->|"是"| NoActionEarly
+    HardEmpty -->|"否"| Gate --> GatePass
+    GatePass -->|"否"| NoTilt
+    GatePass -->|"是"| Clamp
+    NoTilt --> Rerun
+    Clamp --> Rerun
+    Rerun --> Flip
+    Flip -->|"是"| Rollback
+    Flip -->|"否"| Final --> Provenance
+```
+
+### PM 設計解讀
+
+- 群眾 modifier 只能放大硬數據已允許的方向，不能創造動作、翻轉方向或突破 hard band。
+- `NO_ACTION` 必須能在讀取 modifier 前產生，否則 L3 會暗中成為決策主因。
+- zero-modifier CI 是可機器檢測的核心：把 modifier 歸零後，動作仍需同方向成立並跨過門檻。
+
+---
+
+## 7. 資料契約與核心物件
+
+v3 schema 從三份擴成四份：`ETFResearchReport`、`RebalancePlan`、`OperationalReceipt`、`CrowdScenarioReport`。同時新增 `ScenarioSeed`、`ContrarianSignal`、`TiltProvenance` 作為防火牆與可稽核性的關鍵物件。
 
 ```mermaid
 erDiagram
-    ETF ||--o{ DATA_SNAPSHOT : has
-    ETF ||--o{ ETF_RESEARCH_REPORT : summarized_by
-    DATA_SNAPSHOT ||--|| SCORECARD : produces
-    SCORECARD ||--o| REBALANCE_PLAN : may_create
-    ETF_RESEARCH_REPORT ||--o| REBALANCE_PLAN : includes
-    SUBSCRIPTION ||--o{ OPERATIONAL_RECEIPT : creates_revenue
-    TOOL_SERVICE ||--o{ OPERATIONAL_RECEIPT : creates_cost
-    OPERATIONAL_RECEIPT }o--|| OPERATIONAL_PNL : rolls_up_to
+    ETF ||--o{ DATA_BOOK : has
+    DATA_BOOK ||--|| SCORECARD : produces
+    DATA_BOOK ||--o| SCENARIO_SEED : projects
+    SCENARIO_SEED ||--o| CROWD_SCENARIO_REPORT : rehearses
+    CROWD_SCENARIO_REPORT ||--|| CONTRARIAN_SIGNAL : emits
+    SCORECARD ||--o| REBALANCE_PLAN : justifies
+    CONTRARIAN_SIGNAL }o--o| REBALANCE_PLAN : bounded_tilt
+    REBALANCE_PLAN ||--o| TILT_PROVENANCE : records
+    SUBSCRIPTION ||--o{ OPERATIONAL_RECEIPT : revenue
+    TOOL_SERVICE ||--o{ OPERATIONAL_RECEIPT : cost
+    OPERATIONAL_RECEIPT }o--|| OPERATIONAL_PNL : rolls_up
+    REBALANCE_PLAN }o--|| OPERATIONAL_PNL : evidence
 
     ETF {
         string symbol PK
         string name
         string market
-        string category
     }
 
-    DATA_SNAPSHOT {
+    DATA_BOOK {
         string id PK
         string etf_symbol FK
         datetime observed_at
-        string source
         string freshness
+        string book_hash
     }
 
     SCORECARD {
         string id PK
-        string snapshot_id FK
-        float premium_discount
-        float tracking_error
-        float dividend_yield
+        string databook_id FK
+        float trend_score
+        float valuation_score
+        float yield_score
         float risk_score
-        float total_score
     }
 
-    ETF_RESEARCH_REPORT {
+    SCENARIO_SEED {
         string id PK
-        string etf_symbol FK
-        string scenario
-        string thesis
+        string databook_id FK
+        string event_label
+        string seed_hash
+        string ordinal_context
+    }
+
+    CROWD_SCENARIO_REPORT {
+        string id PK
+        string scenario_seed_id FK
+        boolean is_authoritative
+        string reaction_chain
+        string persona_samples
         string disclaimer
-        datetime created_at
+    }
+
+    CONTRARIAN_SIGNAL {
+        string id PK
+        string report_id FK
+        float contrarian_modifier
+        boolean is_authoritative
+        string formula_id
     }
 
     REBALANCE_PLAN {
         string id PK
-        string report_id FK
+        string scorecard_id FK
         string action
-        float target_weight
-        string rationale
+        float hard_delta_pp
+        float final_delta_pp
         string no_action_reason
+    }
+
+    TILT_PROVENANCE {
+        string id PK
+        string decision_id FK
+        string seed_id
+        float hard_delta_pp
+        float tilt_pp_applied
+        string narrative_digest
     }
 
     SUBSCRIPTION {
@@ -269,7 +384,6 @@ erDiagram
         string status
         float amount
         string reason
-        datetime created_at
     }
 
     OPERATIONAL_PNL {
@@ -281,236 +395,184 @@ erDiagram
     }
 ```
 
-### Schema-first 注意事項
+### Schema-first 更新點
 
-- `ETFResearchReport` 必須包含資料來源、freshness、免責聲明與研究定位。
-- `RebalancePlan` 必須允許 `NO_ACTION`，且要保存理由。
-- `OperationalReceipt` 必須能表示成功、拒絕、blocked、manual_review 等狀態。
-- 敏感 token、明文金鑰與 payment credential 不得進入任何報告或 JSON schema。
-
----
-
-## 5. 信任邊界與風控
-
-文件中的關鍵判斷是：真正的硬保證不在 prompt，也不在代理自律，而在 Stripe API 層限制與 OpenShell policy。業務規則可以提醒代理，但不能當成唯一安全邊界。
-
-```mermaid
-flowchart LR
-    Proposal["Hermes 提案<br/>研究輸出或營運支出"]
-    BusinessRules["StackFund 業務規則<br/>預算、白名單、研究定位"]
-    StripeHardLimit["Stripe API 硬性上限<br/>支出上限、人工核可、交易紀錄"]
-    OpenShellPolicy["OpenShell Policy<br/>network / process / filesystem / inference"]
-    ExternalAction["外部動作<br/>資料擷取、SaaS provision、收款"]
-    Denied["Denied Receipt<br/>拒絕原因與 P&L 紀錄"]
-    AuditTrail["Audit Trail<br/>成功、失敗與 telemetry"]
-    CredentialProxy["L7 Proxy 憑證注入<br/>金鑰不落地"]
-
-    Proposal --> BusinessRules
-    BusinessRules -->|"通過"| StripeHardLimit
-    BusinessRules -->|"不通過"| Denied
-    StripeHardLimit -->|"通過"| OpenShellPolicy
-    StripeHardLimit -->|"超額 / 非白名單"| Denied
-    OpenShellPolicy -->|"允許 egress"| CredentialProxy
-    OpenShellPolicy -->|"違反 policy"| Denied
-    CredentialProxy --> ExternalAction
-    ExternalAction -->|"receipt / telemetry"| AuditTrail
-    Denied --> AuditTrail
-```
-
-### 控制層級
-
-| 控制 | 類型 | 架構角色 |
-|---|---|---|
-| StackFund 業務規則 | 軟控制 | 提醒與約束代理決策 |
-| deterministic 計算 | 正確性控制 | 避免 LLM 心算數字或幻想數據 |
-| Stripe API 支出上限 | 硬控制 | 防止代理超額消費 |
-| OpenShell policy | 硬控制 | 限制網路、process、filesystem、inference |
-| Audit & P&L | 可追溯控制 | 保存成功、失敗、拒絕與營收成本證據 |
+- `CrowdScenarioReport` 根層 `is_authoritative` 必須是 `false`，且 `additionalProperties:false`。
+- `ContrarianSignal` 的唯一決策純量是 `contrarian_modifier ∈ [-1,+1]`，且也必須是非權威。
+- `RebalancePlan` 必須保存 hard-only 理由、`NO_ACTION` 理由與 tilt provenance。
+- `OperationalReceipt` 必須能表示 `spend`、`earn`、`refused_spend`、`blocked`、`manual_review`。
+- 所有 schema 不得儲存敏感 token、明文金鑰或 payment credential。
 
 ---
 
-## 6. FinOps 狀態機
-
-來源文件要求 Day 1 驗證 Stripe 雙向金流，並保留 `dry_run`、`free_only`、`live_limited` 等退路。以下狀態機描述 demo 與營運模式的切換。
-
-```mermaid
-stateDiagram-v2
-    [*] --> DAY1_CHECK
-
-    DAY1_CHECK --> LIVE_LIMITED: spend 與 earn 都可驗證
-    DAY1_CHECK --> FREE_ONLY: 只能 free-tier provision 或測試收款
-    DAY1_CHECK --> DRY_RUN: Stripe 條件不足或需等待核可
-
-    DRY_RUN --> FREE_ONLY: 至少可驗證 free-tier 流程
-    FREE_ONLY --> LIVE_LIMITED: Stripe 測試收款與受控支出可用
-    LIVE_LIMITED --> OPERATING: 上限、白名單、audit 都完成
-
-    OPERATING --> DENIED_ACTION: 超額、非白名單或違反 policy
-    DENIED_ACTION --> OPERATING: 寫入 OperationalReceipt 後恢復
-
-    OPERATING --> MANUAL_REVIEW: 高額或敏感操作
-    MANUAL_REVIEW --> OPERATING: 人工核可
-    MANUAL_REVIEW --> DENIED_ACTION: 人工拒絕
-
-    OPERATING --> BLOCKED: 關鍵外部資格不可用
-    BLOCKED --> DRY_RUN: 切換 demo 安全網
-```
-
-### 模式說明
-
-| 模式 | 用途 | 成功條件 |
-|---|---|---|
-| `dry_run` | 無真實付款，驗證流程與 receipt | 能完整產出預期動作與拒絕原因 |
-| `free_only` | 只使用 free-tier provision 或測試收款 | 能展示 earn/spend 的結構，但不承諾真實付費 |
-| `live_limited` | 有真實或測試模式金流，且嚴格限額 | 能展示至少一筆受控 spend 與一筆 earn |
-| `operating` | MVP 完整模式 | policy、支出上限、audit、免責聲明全部落地 |
-
----
-
-## 7. ETF 研究資料流
-
-這張圖只看研究資料如何變成報告。核心原則是「資料與數值先確定，LLM 後解讀」。
+## 8. Crowd Scenario Skill 管線
 
 ```mermaid
 flowchart TB
-    RawSources["原始來源<br/>TWSE / TPEX / MOPS / Yahoo / News"]
-    Fetchers["ETF fetchers<br/>最小可用版本先取價量與報價"]
-    Normalize["Normalize & freshness<br/>欄位統一、來源標記、時效標記"]
-    Metrics["ETF 指標計算<br/>淨值、市價、折溢價、追蹤誤差、殖利率"]
-    Scorecard["透明 scorecard<br/>趨勢、基本面、估值、催化、情緒、風險"]
-    Scenario["固定市場情境<br/>例如升息或電子權值回檔"]
-    Decision["研究決策<br/>調整建議或 NO_ACTION"]
-    Report["ETFResearchReport<br/>研究說明、資料來源、免責聲明"]
+    DataBook["databook.json"]
+    SeedBuilder["seed_builder.py<br/>Python only<br/>DataBook -> EventSeed"]
+    SeedLock["seed.lock.json<br/>rng_seed / roster_hash / model_id / temp=0"]
+    PersonaSim["persona_sim.py<br/>seeded roster + sparse edges"]
+    Round1["Round 1<br/>persona independent reaction"]
+    Round2["Round 2<br/>persona reads K neighbors"]
+    Stance["closed-vocab stance token"]
+    CrossCheck["stance re-derive check<br/>fallback if drift"]
+    Aggregate["aggregate.py<br/>deterministic modifier + reaction_chain"]
+    Narrative["final LLM narrative<br/>only from computed values"]
+    Report["CrowdScenarioReport<br/>schema + disclaimer"]
+    DryRun["--dry-run stub<br/>zero LLM / zero spend"]
 
-    RawSources --> Fetchers
-    Fetchers --> Normalize
-    Normalize --> Metrics
-    Metrics --> Scorecard
-    Scenario --> Scorecard
-    Scorecard --> Decision
-    Decision --> Report
+    DataBook --> SeedBuilder --> SeedLock --> PersonaSim
+    PersonaSim --> Round1 --> Round2 --> Stance --> CrossCheck --> Aggregate
+    Aggregate --> Narrative --> Report
+    DryRun -.-> PersonaSim
 ```
 
-### ETF 特有欄位
+### Clean-room 與價值判讀
 
-| 欄位 | 架構意義 | 計算責任 |
-|---|---|---|
-| 淨值 vs 市價 | 判斷折溢價 | deterministic |
-| 追蹤誤差 | 判斷 ETF 是否偏離標的 | deterministic |
-| 成分股重疊 | 判斷配置集中度 | deterministic |
-| 除息／配息日 | 判斷收益與事件風險 | deterministic |
-| 新聞與情緒 | 輔助市場解讀 | LLM 可解讀，但不得凌駕硬數據 |
+| 判讀 | 架構處理 |
+|---|---|
+| 不直接整合 MiroFish | AGPL、常駐服務、OASIS/Zep、高 LLM 成本皆不適合 MVP |
+| 採 clean-room 蒸餾 | 只取「異質人格反應形成二階鏈」概念，不複製 code／prompt／schema |
+| modifier 不宣稱更準 | 價值釘在 reaction_chain 敘事，不釘在純量 |
+| 可重現不等於已驗證 | `seed.lock.json` 讓 replay 可重現，但 demo 必須說明未經回測 |
+| 門面可降級 | 6/29 落後時砍 replay animation，改 static card，核心不動 |
 
 ---
 
-## 8. 雙投組與單一 P&L
-
-StackFund 的設計亮點是有兩個投組，但最後統一回到一張 Operational P&L。
+## 9. FinOps、訂閱與單一 P&L
 
 ```mermaid
 flowchart LR
-    subgraph ExternalPortfolio["對外：ETF 研究投組"]
-        ETFUniverse["0050 / 0056 / 00878 等 ETF"]
-        ETFAdvice["配置建議 / NO_ACTION"]
-        CustomerValue["客戶價值<br/>研究品質、可解釋性、決策支援"]
+    subgraph Plans["Stripe 訂閱方案"]
+        direction TB
+        WatchPlan["Watch NT$0<br/>deterministic number card"]
+        ProPlan["Pro NT$299/月<br/>crowd scenario narrative"]
+        DeskPlan["Desk NT$999/月<br/>roadmap"]
     end
 
-    subgraph InternalPortfolio["對內：營運成本投組"]
-        ToolStack["資料 API / LLM / DB / Observability / Delivery"]
-        ToolActions["Upgrade / Downgrade / Add / Remove / Reject"]
-        CostValue["代理價值<br/>成本效率、可靠度、毛利"]
+    subgraph Earn["EARN"]
+        direction TB
+        Billing["Stripe Billing"]
+        Revenue["Revenue Receipt"]
+        Billing --> Revenue
     end
 
-    subgraph PNL["單一 Operational P&L"]
-        Revenue["訂閱營收"]
-        Cost["工具與運算成本"]
-        Margin["營運毛利"]
-        Evidence["before / after 證據"]
+    subgraph Spend["SPEND"]
+        direction TB
+        VoI["Value-of-Information gate<br/>materiality + cap headroom"]
+        Provision["SaaS provision / upgrade / downgrade"]
+        Refused["Refused Spend<br/>cap breach / not worth it"]
+        VoI -->|"worth it"| Provision
+        VoI -->|"not worth it"| Refused
     end
 
-    ETFUniverse --> ETFAdvice --> CustomerValue
-    ToolStack --> ToolActions --> CostValue
-    CustomerValue --> Revenue
-    CostValue --> Cost
+    subgraph PNL["Operational P&L"]
+        direction TB
+        Cost["Cost Receipt"]
+        Margin["Revenue - Cost"]
+        Evidence["before / after evidence"]
+        Margin --> Evidence
+    end
+
+    WatchPlan --> Billing
+    ProPlan --> Billing
+    DeskPlan -.-> Billing
     Revenue --> Margin
-    Cost --> Margin
-    Margin --> Evidence
+    Provision --> Cost --> Margin
+    Refused --> Evidence
 ```
 
-### 架構含意
+### FinOps 防火牆
 
-- 對外投組回答「客戶該如何理解 ETF 配置」。
-- 對內投組回答「代理該如何花自己的營運預算」。
-- P&L 把客戶價值與營運成本放在同一張表，讓 demo 不只是研究工具，也是一個能自我經營的微型事業。
+- `contrarian_modifier` 不能成為支出主觸發，只能作 tie-breaker。
+- 付費報告是否值得跑，由 deterministic VoI gate 判斷。
+- Refused spend 是 demo 的核心 beat：代理不只會花錢，也能在不值得時拒絕花錢。
 
 ---
 
-## 9. MVP 開發順序
-
-這不是新增功能，而是把來源文件中的建議開發順序轉成架構落地路線。重點是先打通真實執行，再包安全沙盒。
+## 10. Demo 與建置路線
 
 ```mermaid
 flowchart TD
-    A["Day 1 驗證 Stripe 雙向金流<br/>spend + earn"]
-    B["Day 1 驗證台股資料層<br/>TWSE 一檔 ETF + Yahoo 報價"]
-    C["鎖定三份 schema<br/>ETFResearchReport / RebalancePlan / OperationalReceipt"]
-    D["補最小 ETF fetcher<br/>fork tw-stock-agent 格式"]
-    E["建立 deterministic scorecard 與 optimizer"]
-    F["接 read-only Hermes workflow"]
-    G["加入 policy checker 與支出上限"]
-    H["接 Stripe 真實或測試模式收款與付費"]
-    I["建立 dashboard / Audit / P&L"]
-    J["包入 NemoClaw / OpenShell"]
-    K["錄製或演示 live demo"]
+    subgraph Core["Days 1-6：先凍結核心"]
+        direction TB
+        D1["Day 1<br/>Stripe TW 雙流 + TWSE/Yahoo 可達"]
+        D2["Day 2<br/>鎖四份 schema + freeze fixtures"]
+        D3["Day 3<br/>scorecard + cost optimizer + unit tests"]
+        D4["Day 4<br/>Stripe SPEND + REFUSED SPEND"]
+        D5["Day 5<br/>Stripe EARN + P&L"]
+        D6["Day 6<br/>firewall + PM tilt + zero-modifier CI<br/>CORE FROZEN"]
+        D1 --> D2 --> D3 --> D4 --> D5 --> D6
+    end
 
-    A --> C
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    J --> K
+    subgraph FaceBuild["Days 7-9：門面可降級"]
+        direction TB
+        D7["Day 7<br/>crowd scenario scaffold"]
+        D8["Day 8<br/>bake LLM persona text + replay artifact"]
+        D9["Day 9<br/>animation + non-authoritative badge + hard cut"]
+        D7 --> D8 --> D9
+    end
+
+    subgraph Delivery["Days 10-12：交付"]
+        direction TB
+        D10["Day 10<br/>NemoClaw wrap + rehearsal"]
+        D11["Day 11<br/>110s fallback recording + drills"]
+        D12["Day 12<br/>buffer / submit"]
+        D10 --> D11 --> D12
+    end
+
+    Core --> FaceBuild --> Delivery
 ```
 
-### Go / No-Go 檢查
+### 110 秒 demo 節奏
 
-| 檢查點 | Go 條件 | No-Go 或退路 |
+| 時段 | 作用 | 架構訊號 |
 |---|---|---|
-| Stripe spend | 至少一個受控 provision 可執行 | 改為 `free_only` 或 `dry_run` |
-| Stripe earn | 測試卡或真實模式訂閱流程可展示 | 改為測試模式收款 |
-| 台股資料 | TWSE + Yahoo 最小資料可取得 | 使用 fixture 並明確標 freshness |
-| 法規定位 | 報告全程保持研究／教育語氣 | 不展示個別化買賣指令 |
-| Demo 可靠性 | live path 與備錄影都完成 | 以錄影 fallback，標明真實限制 |
+| 0:00-0:10 | 防火牆開場 | 群眾引擎非權威、不碰金額/權重/下單 |
+| 0:10-0:24 | EARN live | Stripe Billing 收款進 P&L |
+| 0:24-0:38 | SPEND pre-staged | agent provision 工具，成本進 P&L |
+| 0:38-0:50 | REFUSED SPEND live error path | Stripe cap 硬拒，代理 NO_ACTION |
+| 0:50-0:78 | 情境引擎 WOW replay | `is_authoritative=false`，可稽核但未驗證 |
+| 0:78-0:96 | Hard cut 回引擎 | 刪掉群眾面板後，同一動作仍成立 |
+| 0:96-0:110 | viability close | before/after P&L 與免責聲明 |
 
 ---
 
-## 10. 風險對應圖
-
-來源文件的 R1 到 R7 可歸納成四類：平台資格、法規、資料與 demo 可靠性、代理可信度。
+## 11. 風險對應圖
 
 ```mermaid
-flowchart TB
-    R1["R1 Stripe 台灣 earn / spend 資格"]
-    R2["R2 台灣投顧法規"]
-    R3["R3 live demo 出包"]
-    R4["R4 資料來源穩定度"]
-    R5["R5 scorecard 可信度"]
-    R6["R6 agency 認知"]
-    R7["R7 skill 格式與 fetcher 缺口"]
+flowchart LR
+    subgraph Risks["風險"]
+        direction TB
+        R1["R1 Stripe TW earn / spend 資格"]
+        R2["R2 SITA 投顧法規"]
+        R2B["R2b 市場誠信 / 資訊型操縱觀感"]
+        R2C["R2c headline 化削弱研究 carve-out"]
+        R3["R3 live demo 執行出包"]
+        R4["R4 資料來源穩定度"]
+        R5["R5 可重現不等於已驗證"]
+        R6["R6 agency 認知"]
+        R7["R7 clean-room / 授權 credibility"]
+    end
 
-    M1["dry_run / free_only / live_limited"]
-    M2["研究教育定位 + 免責聲明"]
-    M3["備錄影 + rate limit fallback"]
-    M4["official source 優先 + freshness 標記"]
-    M5["透明公式 + deterministic 計算"]
-    M6["展示執行迴圈與失敗復原"]
-    M7["fork skill 格式 + Day 1 最小 fetcher"]
+    subgraph Mitigations["緩解"]
+        direction TB
+        M1["dry_run / free_only / live_limited"]
+        M2["非個別化出版品 framing<br/>test-mode / 零下單 / 去買賣指令"]
+        M2B["假設性壓力情境<br/>不主張指名 ETF 價格方向"]
+        M2C["情境推演 / 壓力測試 wording"]
+        M3["pre-stage + replay + fallback recording"]
+        M4["官方來源優先 + freshness + fixture fallback"]
+        M5["主動揭露未回測<br/>modifier 價值釘敘事"]
+        M6["展示 provision / cap breach / downgrade"]
+        M7["誠實 clean-room.md<br/>不複製 code/prompt/schema"]
+    end
 
     R1 --> M1
     R2 --> M2
+    R2B --> M2B
+    R2C --> M2C
     R3 --> M3
     R4 --> M4
     R5 --> M5
@@ -518,41 +580,41 @@ flowchart TB
     R7 --> M7
 ```
 
-### 風險整理
+### 風險判讀更新
 
-| 風險 | 架構回應 |
+| 風險 | 更新後架構回應 |
 |---|---|
-| Stripe 資格不確定 | 用模式切換，不把 demo 綁死在完整 live 金流 |
-| 投顧法規 | 全部輸出定位為研究／教育決策支援 |
-| 資料不穩 | 官方來源優先、Yahoo 輔助、fixture fallback、freshness 標記 |
-| scorecard 被質疑 | 公式透明，讓可觀測訊號推導分數 |
-| agency 被質疑 | 展示 Hermes 處理真實 provision、拒絕、downgrade 與 receipt |
-| 安全性被質疑 | 用 Stripe API limit 與 OpenShell policy 作硬邊界 |
+| 防火牆 gate 太鬆 | 兩個不同 factor family、bounded clamp、zero-modifier CI |
+| modifier 影響支出 | FinOps 由 VoI gate 主導，modifier 最多 tie-breaker |
+| demo 三筆 Stripe 失敗 | live/replayed 標示、pre-staged spend、fallback recording |
+| headline 敘事被誤讀成預測 | 用「情境推演／壓力測試」，禁「預測／預報」 |
+| 法規曝險 | 主要防線是非個別化、test-mode、零下單、免責，不是防火牆 |
+| clean-room credibility | 誠實承認曾理解 source，但未複製 code／prompt／schema |
 
 ---
 
-## 11. 關鍵設計決策摘要
+## 12. 關鍵設計決策摘要
 
 | 決策 | 為什麼重要 |
 |---|---|
-| Stripe 只處理事業金流，不碰證券交易 | 避開「用 Stripe 買 ETF」的錯誤邊界，也降低法規風險 |
-| deterministic 與 LLM 分工 | 數值可信度靠確定性計算，LLM 負責可讀解釋 |
-| schema-first | 先鎖輸出契約，避免報告、receipt、P&L 各做各的 |
-| NO_ACTION 是一等結果 | 代理能拒絕不必要動作，才像真正推理而不是看到就執行 |
-| 雙投組、單一 P&L | 同時展示客戶價值與代理事業是否賺錢 |
-| OpenShell + Stripe 雙硬邊界 | 即使代理判斷錯誤，也有 API 與 sandbox 層防護 |
-| Day 1 驗證外部依賴 | 把最大不確定性前移，避免最後才發現 demo 跑不起來 |
+| 群眾引擎升為產品門面，但非權威 | 增加差異化，同時避免污染核心決策 |
+| Core-B 六層架構 | 把 FACE 與 ENGINE 的邊界顯性化 |
+| `ContrarianSignal` typed output | 讓 L3 只能以有界、可稽核、非權威物件進入 L4 |
+| hard-only first | 防止群眾敘事成為動作唯一原因 |
+| threshold-flip 防護 | 若只有 crowd tilt 才讓動作跨門檻，回退 NO_ACTION |
+| zero-modifier CI | 把「移除群眾仍成立」變成可測不變式 |
+| VoI gate 控制付費報告 | 讓 spend 決策仍由硬資料與預算控制 |
 
 ---
 
-## 12. 文件結論
+## 13. 文件結論
 
-StackFund 的架構可被清楚拆成「代理編排」、「ETF 研究」、「FinOps 金流」、「安全邊界」、「審計與 P&L」五個核心面向。來源文件最強的設計不是單純產出 ETF 建議，而是讓代理真正經營一個微型研究事業：抓真實資料、產出研究、向訂閱者收費、管理自己的營運成本，並在不值得或不允許時拒絕行動。
+更新後的 StackFund 架構不再只是「台股 ETF 研究台 + Stripe 金流」。v3 把產品門面改成「群眾情境推演引擎」，但最重要的架構價值在於它被嚴格隔離：群眾層負責可展示、可銷售、可重播的二階敘事；deterministic 主幹負責所有數字、權重、支出與 P&L。
 
-以 Mermaid 圖來看，這套架構的成功關鍵是三個邊界：
+Core-B 成立的條件是三個可檢查承諾：
 
-- 研究邊界：只做研究與教育決策支援，不做下單或個別化收費投顧。
-- 計算邊界：硬數字由 deterministic engine 算，LLM 不負責心算。
-- 執行邊界：外部花費與網路行為由 Stripe API limit 與 OpenShell policy 控住。
+- 群眾層只輸出 `ContrarianSignal`，且 `is_authoritative=false`。
+- L4 的每個非零 RebalancePlan 都能在 modifier 歸零後由硬數據同方向成立。
+- L5 的 spend 由 deterministic VoI gate 與 Stripe 硬上限控制，群眾層不能主觸發支出。
 
-若 Phase 1 能驗證 Stripe 雙向金流與台股資料最小流程，StackFund 就具備繼續落地 MVP 的架構基礎。
+因此，這份架構分析的結論是：v3 的可行性比舊版更有 presentation 優勢，但也更依賴防火牆、用語、demo 紀律與主動揭露。只要 Day 6 前凍結 Core（防火牆、PM tilt、P&L、zero-modifier CI），即使最後砍掉情境動畫，StackFund 仍保有 earn／spend／run real operations 的核心說服力。
