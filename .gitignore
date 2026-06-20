@@ -22,6 +22,9 @@ secrets/*.txt
 
 # Hermes agent state (mounted at /opt/data at runtime)
 .hermes/
+.hermes-data/
+# Runtime agent env (holds the real LLM key) — only agent.env.example is tracked
+docker/agent.env
 
 # OS / editor
 .DS_Store

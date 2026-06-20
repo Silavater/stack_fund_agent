@@ -79,6 +79,22 @@ The `agent` image builds `FROM nousresearch/hermes-agent` and bakes the skills a
 `/opt/data/skills/...`; mount host `~/.hermes` at `/opt/data` for persistent state.
 Requires Docker Engine ≥ 28.
 
+### Run the Hermes agent (required Hermes model)
+The hackathon requires a Nous Hermes model. Paste your **Nous Portal API key**
+(provider `nous-api`) into the runtime env file — that's the only thing to fill:
+```bash
+cp docker/agent.env.example docker/agent.env     # paste NOUS_API_KEY (file is git-ignored)
+./docker/verify-model.sh                          # one-shot: prints the model's reply
+./docker/run-gateway.sh                           # boot the agent (messaging + cron)
+```
+Windows: `docker/verify-model.ps1` / `docker/run-gateway.ps1`. The key is injected
+at runtime (`--env-file`) — never baked into an image. State persists in
+`.hermes-data/` (mounted at `/opt/data`). `gateway` is the messaging/cron service
+(it boots under s6 supervision; verified); use `hermes chat` for an interactive
+turn or `hermes proxy` for a local OpenAI-compatible API. Image:
+`nousresearch/hermes-agent` (Docker Hub, ~5.3 GB). Pick the exact Hermes id with
+`hermes model --refresh`.
+
 ## Security model
 - **Secrets are runtime-only** — never in an image layer (`ARG`/`ENV`/`COPY .env`
   are banned). Injected via compose secrets → `/run/secrets/*` or the OpenShell
@@ -93,18 +109,18 @@ commit SHA; see `.github/workflows/ci.yml`.)
 
 ## Status / decisions
 This is the dockerization + engine scaffold. Confirmed and baked in:
-- **Model: a Nous Hermes model is REQUIRED** → configured as the default inference
-  backend in `policy/openshell.yaml` and `policy/nemoclaw-blueprint.yaml`
-  (`nous/Hermes-4-70B`; set the exact id + provider endpoint via `hermes setup`).
+- **Model: a Nous Hermes model is REQUIRED** → use provider `nous-api` + your
+  `NOUS_API_KEY` (paste into `docker/agent.env`); confirm the exact Hermes id with
+  `hermes model`. Defaults also set in `policy/openshell.yaml` /
+  `nemoclaw-blueprint.yaml`. **Verified:** the official image
+  `nousresearch/hermes-agent` (**Docker Hub**, ~5.3 GB) boots the gateway under s6.
 - **Stripe: use a sandbox** (`stripe sandbox create`) for isolated TEST keys
   (`rk_test_…`), injected at runtime via compose secrets — never baked into the image.
 
 Still to verify before locking the demo:
 1. **Stripe spend path on Windows** — Hermes' Stripe Link CLI is Linux/macOS +
    US-account only → run under WSL2, or do spend via the Stripe agent-toolkit/Issuing.
-2. **Hermes image registry / ports** — `docker pull nousresearch/hermes-agent`
-   (Docker Hub vs GHCR), confirm `8642`/`9119` + `/opt/data`.
-3. **Deliverable** — the required artifact is a **1–3 min demo video**
+2. **Deliverable** — the required artifact is a **1–3 min demo video**
    (tweet @NousResearch + Discord). Confirm the deadline on the official channel.
 
 ## Licence
