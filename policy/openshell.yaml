@@ -35,9 +35,13 @@ policy:
     deny_syscalls: [ptrace, mount, kexec_load]
 
   inference:                  # privacy router; credentials injected at egress
-    default_backend: nvidia/nemotron-3-super-120b-a12b
-    credential_injection: egress_proxy   # keys never touch the sandbox filesystem;
+    # Hackathon REQUIRES a Nous Hermes model — the Hermes Agent harness drives it.
+    # Set the exact id + provider endpoint via `hermes setup`.
+    default_backend: nous/Hermes-4-70B    # or Hermes-4-405B / Hermes-4-14B
+    credential_injection: egress_proxy    # keys never touch the sandbox filesystem;
                                           # the agent sees placeholder credentials
     routes:
       - match: { sensitivity: high }
-        backend: local/nemotron           # experimental local route
+        backend: nous/Hermes-4-405B       # larger Hermes for hard cases
+      - match: { privacy: local }
+        backend: local/Hermes-4-70B       # local Hermes weights via vLLM/Ollama

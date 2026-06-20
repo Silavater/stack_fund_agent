@@ -15,11 +15,11 @@ metadata:
   version: 0.1.0
 spec:
   agent: hermes                              # NEMOCLAW_AGENT=hermes (or `nemohermes`)
-  model: nvidia/nemotron-3-super-120b-a12b   # model-agnostic; any provider works
+  model: nous/Hermes-4-70B                   # REQUIRED: a Nous Hermes model (not Nemotron)
   sandbox:
     image: stackfund-agent:dev
     dockerfile: docker/Dockerfile.agent
   policy: policy/openshell.yaml
   inference:
-    provider: nvidia
+    provider: nous                           # Nous Hermes (hosted API or local weights); register the endpoint
     privacy_router: true                     # route by cost/privacy policy, hot-reloadable

@@ -12,7 +12,8 @@ cp secrets/stripe_webhook_secret.txt.example secrets/stripe_webhook_secret.txt
 ```
 
 ## Guidance
-- Use a **Restricted API Key in TEST mode** (`rk_test_…`), scoped least-privilege
-  (separate keys for earn vs spend).
+- Create keys inside a **Stripe sandbox** (`stripe sandbox create`) for full
+  isolation, and use a **Restricted API Key in TEST mode** (`rk_test_…`), scoped
+  least-privilege (separate keys for earn vs spend).
 - Never commit a `*.txt` file, never put a key in the Dockerfile/`ENV`/build-arg.
 - In production, prefer a managed secret manager (Vault / cloud secret manager).

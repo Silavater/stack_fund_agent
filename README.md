@@ -91,16 +91,21 @@ Requires Docker Engine ≥ 28.
 → `docker build` core + zero-network smoke test. (Optional Trivy scan — pin by
 commit SHA; see `.github/workflows/ci.yml`.)
 
-## Status / needs confirmation
-This is the dockerization + engine scaffold. Before locking the demo, confirm:
-1. **Stripe spend skill platform limits** — Hermes' Stripe Link CLI is
-   Linux/macOS + US-account only (the dev box is Windows → run under WSL2, or do
-   spend via the Stripe agent-toolkit/Issuing).
+## Status / decisions
+This is the dockerization + engine scaffold. Confirmed and baked in:
+- **Model: a Nous Hermes model is REQUIRED** → configured as the default inference
+  backend in `policy/openshell.yaml` and `policy/nemoclaw-blueprint.yaml`
+  (`nous/Hermes-4-70B`; set the exact id + provider endpoint via `hermes setup`).
+- **Stripe: use a sandbox** (`stripe sandbox create`) for isolated TEST keys
+  (`rk_test_…`), injected at runtime via compose secrets — never baked into the image.
+
+Still to verify before locking the demo:
+1. **Stripe spend path on Windows** — Hermes' Stripe Link CLI is Linux/macOS +
+   US-account only → run under WSL2, or do spend via the Stripe agent-toolkit/Issuing.
 2. **Hermes image registry / ports** — `docker pull nousresearch/hermes-agent`
    (Docker Hub vs GHCR), confirm `8642`/`9119` + `/opt/data`.
-3. **Hackathon deliverable** — the required artifact is a **1–3 min demo video**
-   (tweet @NousResearch + Discord); repo/Docker are credibility, not compliance.
-   Confirm the deadline on the official channel.
+3. **Deliverable** — the required artifact is a **1–3 min demo video**
+   (tweet @NousResearch + Discord). Confirm the deadline on the official channel.
 
 ## Licence
 MIT. The crowd-scenario engine is a clean-room distillation (idea only) — see

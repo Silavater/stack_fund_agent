@@ -1,6 +1,6 @@
 {
   "is_authoritative": false,
-  "engine": { "seed": 42, "deterministic_core": true, "model": "nemotron" },
+  "engine": { "seed": 42, "deterministic_core": true, "model": "Hermes-4-70B" },
   "scenario": {
     "scenario_id": "0056_cut",
     "label": "0056 配息調降情境",
