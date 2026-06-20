@@ -26,9 +26,6 @@ services:
     networks: [egress]
     ports:
       - "8642:8642"                 # Hermes gateway (messaging/cron; binds when a platform is set)
-    env_file:
-      - path: agent.env             # holds NOUS_API_KEY (git-ignored); optional so `up` works without it
-        required: false
     environment:
       HTTP_PROXY: "http://egress-proxy:3128"
       HTTPS_PROXY: "http://egress-proxy:3128"
@@ -36,11 +33,11 @@ services:
       # The app reads keys from the mounted secret FILES, not from these envs.
       STRIPE_SECRET_KEY_FILE: "/run/secrets/stripe_secret_key"
       STRIPE_WEBHOOK_SECRET_FILE: "/run/secrets/stripe_webhook_secret"
-    # REQUIRED Hermes model via Nous Portal API key (provider: nous-api).
-    command: ["--provider", "nous-api", "-m", "${HERMES_MODEL:-Hermes-4-70B}", "gateway", "run"]
+    # Model creds: put them in ../.hermes-data/.env (cp from docker/agent.env);
+    # Hermes reads /opt/data/.env and auto-detects the provider. CMD is `gateway run`.
     secrets: [stripe_secret_key, stripe_webhook_secret]
     volumes:
-      - hermes_data:/opt/data
+      - ../.hermes-data:/opt/data
 
   egress-proxy:
     # Default-deny forward proxy; only the allowlisted hosts in squid.conf pass.
@@ -53,9 +50,6 @@ networks:
   egress:
     internal: true                  # no direct host/LAN route; must use the proxy
   outbound: {}                      # only the proxy is attached here
-
-volumes:
-  hermes_data: {}
 
 secrets:
   stripe_secret_key:

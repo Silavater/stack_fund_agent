@@ -79,21 +79,27 @@ The `agent` image builds `FROM nousresearch/hermes-agent` and bakes the skills a
 `/opt/data/skills/...`; mount host `~/.hermes` at `/opt/data` for persistent state.
 Requires Docker Engine ≥ 28.
 
-### Run the Hermes agent (required Hermes model)
-The hackathon requires a Nous Hermes model. Paste your **Nous Portal API key**
-(provider `nous-api`) into the runtime env file — that's the only thing to fill:
+### Run the Hermes agent
+Set **exactly one** provider block in `docker/agent.env` (copy from `.example`) —
+the provider auto-detects from the key:
+- **Nous (Hermes)** — `NOUS_API_KEY` (the simplest Hermes path).
+- **Anthropic (Claude)** — `ANTHROPIC_API_KEY`.
+- **OpenAI-compatible** — `OPENAI_API_KEY` + `OPENAI_BASE_URL` (OpenAI / OpenRouter /
+  vLLM / Ollama / self-hosted Hermes-4).
+
 ```bash
-cp docker/agent.env.example docker/agent.env     # paste NOUS_API_KEY (file is git-ignored)
+cp docker/agent.env.example docker/agent.env     # set ONE block + paste key (git-ignored)
 ./docker/verify-model.sh                          # one-shot: prints the model's reply
 ./docker/run-gateway.sh                           # boot the agent (messaging + cron)
 ```
-Windows: `docker/verify-model.ps1` / `docker/run-gateway.ps1`. The key is injected
-at runtime (`--env-file`) — never baked into an image. State persists in
-`.hermes-data/` (mounted at `/opt/data`). `gateway` is the messaging/cron service
-(it boots under s6 supervision; verified); use `hermes chat` for an interactive
-turn or `hermes proxy` for a local OpenAI-compatible API. Image:
-`nousresearch/hermes-agent` (Docker Hub, ~5.3 GB). Pick the exact Hermes id with
-`hermes model --refresh`.
+Windows: `docker/*.ps1`. The scripts copy `docker/agent.env` → `.hermes-data/.env`,
+the file Hermes reads at `/opt/data/.env` (verified: docker `--env-file` is scrubbed
+by the image's s6 init, so the data-dir `.env` is the reliable path). Keys are never
+baked into an image. `gateway` is the messaging/cron service (boots under s6;
+verified); use `hermes chat` for an interactive turn or `hermes proxy` for a local
+OpenAI-compatible API. Image: `nousresearch/hermes-agent` (Docker Hub, ~5.3 GB).
+**Hackathon note:** the submission must use a Hermes model — Nous, or an
+OpenAI-compatible endpoint serving Hermes-4.
 
 ## Security model
 - **Secrets are runtime-only** — never in an image layer (`ARG`/`ENV`/`COPY .env`
