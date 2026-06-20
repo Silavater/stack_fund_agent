@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# StackFund AGENT image: the Hermes Agent harness + StackFund skills + engine.
+#
+# This image is what OpenShell/NemoClaw launches as a sandbox (OpenShell runs
+# agents INSIDE OCI/Docker containers — it does not replace Docker).
+#
+# NOTE: the base image name is per the Nous docs. Before relying on it for a
+# submission, confirm the registry/tag:
+#     docker pull nousresearch/hermes-agent:latest
+# (Docker Hub vs GHCR was not 100% confirmed in research.)
+# ---------------------------------------------------------------------------
+FROM nousresearch/hermes-agent:latest
+
+# --- StackFund deterministic engine (skills shell out to `python -m stackfund`) ---
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
+WORKDIR /opt/stackfund
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
+COPY schemas ./schemas
+COPY fixtures ./fixtures
+RUN uv sync --locked --no-dev
+ENV PATH="/opt/stackfund/.venv/bin:$PATH" \
+    PYTHONUTF8=1 \
+    PYTHONPATH=/opt/stackfund/src \
+    STACKFUND_SCHEMA_DIR=/opt/stackfund/schemas \
+    STACKFUND_FIXTURES=/opt/stackfund/fixtures
+
+# --- StackFund Agent Skills, baked at the Hermes convention path ---
+#   ~/.hermes/skills/<category>/<skill-name>/  ==  /opt/data/skills/...
+COPY skills/etf-analysis   /opt/data/skills/research/etf-analysis
+COPY skills/crowd-scenario /opt/data/skills/research/crowd-scenario
+
+# Hermes gateway (OpenAI-compatible API). LLM/Stripe secrets are injected at
+# RUNTIME (compose secrets / OpenShell egress proxy) — never baked into a layer.
+EXPOSE 8642
+# Persistent state (config, keys, sessions, memory, skills): mount host ~/.hermes.
+VOLUME ["/opt/data"]
+CMD ["gateway", "run"]

@@ -1,0 +1,27 @@
+{
+  "is_authoritative": false,
+  "engine": { "seed": 42, "deterministic_core": true, "model": "nemotron" },
+  "scenario": {
+    "scenario_id": "0056_cut",
+    "label": "0056 配息調降情境",
+    "shock_description": "假設性壓力情境:0056 宣布調降配息(非預測、非陳述指名 ETF 將如何變動)",
+    "horizon": "T+5"
+  },
+  "reaction_chain": [
+    { "order": 1, "trigger_archetype": "yield_seeker", "reacting_archetype": "panic_retail", "mechanism": "yield_disappointment", "narrative": "殖利率派若失望,部分可能轉出。" },
+    { "order": 2, "trigger_archetype": "panic_retail", "reacting_archetype": "long_term_holder", "mechanism": "contagion", "narrative": "恐慌散戶若殺出,存股族這類人格可能視為加碼點。" },
+    { "order": 3, "trigger_archetype": "long_term_holder", "reacting_archetype": "foreign_institutional_lens", "mechanism": "stabiliser", "narrative": "長期持有與外資視角可能提供抗跌敘事。" }
+  ],
+  "persona_samples": [
+    { "archetype_id": "yield_seeker", "stance": -1, "register": "zh-TW", "excerpt": "[synthetic] 配息變少這類人格可能換股。", "is_synthetic": true },
+    { "archetype_id": "long_term_holder", "stance": 1, "register": "zh-TW", "excerpt": "[synthetic] 這類人格可能照扣不動。", "is_synthetic": true }
+  ],
+  "contrarian_modifier": {
+    "value": 0.42,
+    "is_authoritative": false,
+    "formula_id": "contrarian-agg/1.0.0",
+    "interpretation": "fade_overbought"
+  },
+  "data_completeness": "full",
+  "disclaimer": "情境推演·合成人格·非真實民意·非預測·未經回測;所有金額與權重均由 deterministic 程式計算;StackFund 全程不下任何證券委託單。"
+}

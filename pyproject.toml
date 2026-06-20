@@ -1,0 +1,67 @@
+[project]
+name = "stackfund"
+version = "0.1.0"
+description = "StackFund — Autonomous Taiwan ETF Research Desk (Hermes agent). Core-B: deterministic ENGINE + non-authoritative crowd-scenario FACE."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+  "jsonschema>=4.21",
+]
+
+[project.optional-dependencies]
+# Stripe earn/spend wiring (L5). Optional so the deterministic core stays light and fast to build.
+stripe = ["stripe>=9.0"]
+
+[project.scripts]
+stackfund = "stackfund.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stackfund"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+  "import-linter>=2.0",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# Architectural firewall (Core-B). Enforced in CI by `lint-imports`.
+# The L4 portfolio manager (the "steering wheel") must never reach the L3 crowd
+# side-rail or its non-authoritative ContrarianSignal. Spend (L5) likewise.
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "stackfund"
+
+[[tool.importlinter.contracts]]
+name = "L4 firewall: portfolio manager must not import the crowd side-rail (L3 / ContrarianSignal)"
+type = "forbidden"
+source_modules = ["stackfund.l4_portfolio"]
+forbidden_modules = ["stackfund.l3_crowd", "stackfund.contracts.contrarian_signal"]
+
+[[tool.importlinter.contracts]]
+name = "L5 spend must not be triggered by the crowd side-rail"
+type = "forbidden"
+source_modules = ["stackfund.l5_finops"]
+forbidden_modules = ["stackfund.l3_crowd", "stackfund.contracts.contrarian_signal"]
+
+[[tool.importlinter.contracts]]
+name = "Deterministic trunk flows downward only (L4 -> L2 -> L1)"
+type = "layers"
+layers = ["stackfund.l4_portfolio", "stackfund.l2_scorecard", "stackfund.l1_databook"]

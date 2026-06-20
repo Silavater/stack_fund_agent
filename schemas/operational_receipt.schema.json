@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/operational_receipt.schema.json",
+  "title": "OperationalReceipt",
+  "description": "Earn / spend / refused_spend / blocked / manual_review. Never stores tokens or payment credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_id", "type", "status", "amount"],
+  "properties": {
+    "receipt_id": { "type": "string" },
+    "type": { "enum": ["spend", "earn", "refused_spend", "blocked", "manual_review"] },
+    "status": { "type": "string" },
+    "amount": { "type": "number" },
+    "currency": { "type": "string" },
+    "reason": { "type": ["string", "null"] }
+  }
+}

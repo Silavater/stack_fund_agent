@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/etf_research_report.schema.json",
+  "title": "ETFResearchReport",
+  "description": "Authoritative deterministic research bundle: DataBook + ScoreCard. A disclaimer is mandatory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["etf_symbol", "databook", "scorecard", "disclaimer"],
+  "properties": {
+    "etf_symbol": { "type": "string" },
+    "databook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["book_id", "etf_symbol", "observed_at", "freshness", "book_hash"],
+      "properties": {
+        "book_id": { "type": "string" },
+        "etf_symbol": { "type": "string" },
+        "observed_at": { "type": "string" },
+        "freshness": { "enum": ["frozen", "live", "partial"] },
+        "metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+        "book_hash": { "type": "string" }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scorecard_id", "trend_score", "valuation_score", "risk_score"],
+      "properties": {
+        "scorecard_id": { "type": "string" },
+        "databook_id": { "type": "string" },
+        "etf_symbol": { "type": "string" },
+        "trend_score": { "type": "number" },
+        "fundamental_score": { "type": "number" },
+        "valuation_score": { "type": "number" },
+        "catalyst_score": { "type": "number" },
+        "risk_score": { "type": "number" }
+      }
+    },
+    "disclaimer": { "type": "string", "minLength": 40 }
+  }
+}

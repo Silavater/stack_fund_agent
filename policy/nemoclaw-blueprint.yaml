@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# NemoClaw blueprint — a versioned package bundling sandbox image + policy +
+# inference profile. NemoClaw onboards/builds the image and wires the OpenShell
+# sandbox around it.
+#
+#   Stack: Hermes agent  ->  Docker/OCI image  ->  OpenShell sandbox  ->  NemoClaw
+#
+# Skeleton only — verify keys/flags against the live NemoClaw docs
+# (e.g. `nemoclaw onboard`). Requires a host with a running Docker daemon.
+# ---------------------------------------------------------------------------
+apiVersion: nemoclaw/v1
+kind: Blueprint
+metadata:
+  name: stackfund
+  version: 0.1.0
+spec:
+  agent: hermes                              # NEMOCLAW_AGENT=hermes (or `nemohermes`)
+  model: nvidia/nemotron-3-super-120b-a12b   # model-agnostic; any provider works
+  sandbox:
+    image: stackfund-agent:dev
+    dockerfile: docker/Dockerfile.agent
+  policy: policy/openshell.yaml
+  inference:
+    provider: nvidia
+    privacy_router: true                     # route by cost/privacy policy, hot-reloadable

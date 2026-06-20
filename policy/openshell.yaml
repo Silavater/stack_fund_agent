@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# OpenShell sandbox policy for the StackFund agent.
+#
+# Packaging (the Docker image, docker/Dockerfile.agent) and policy (THIS file)
+# are SEPARATE artifacts. OpenShell launches the OCI image as a sandbox and
+# enforces this policy from the application layer down to the kernel.
+#
+# NOTE: OpenShell's kernel primitives (Landlock, seccomp-bpf, network
+# namespaces) are Linux-only — on a Windows/macOS dev host this must run over a
+# Linux container/MicroVM (e.g. Docker Desktop + WSL2). Confirm the exact policy
+# schema/keys against the live OpenShell docs before relying on it.
+# ---------------------------------------------------------------------------
+version: "1"
+
+sandbox:
+  name: stackfund-agent
+  # `openshell sandbox create --from .` (Dockerfile dir) or an OCI image ref:
+  from: stackfund-agent:dev
+
+policy:
+  filesystem:                 # locked at sandbox creation
+    allow_read:  ["/opt/data", "/opt/stackfund"]
+    allow_write: ["/opt/data"]
+    deny:        ["/etc/shadow", "/root/.ssh"]
+
+  network:                    # default-deny; hot-reloadable at runtime
+    default: deny
+    allow_egress:
+      - { host: api.stripe.com, port: 443 }
+      - { host: mcp.stripe.com, port: 443 }
+      - { host: integrate.api.nvidia.com, port: 443 }
+
+  process:                    # locked at creation
+    no_new_privileges: true
+    deny_syscalls: [ptrace, mount, kexec_load]
+
+  inference:                  # privacy router; credentials injected at egress
+    default_backend: nvidia/nemotron-3-super-120b-a12b
+    credential_injection: egress_proxy   # keys never touch the sandbox filesystem;
+                                          # the agent sees placeholder credentials
+    routes:
+      - match: { sensitivity: high }
+        backend: local/nemotron           # experimental local route

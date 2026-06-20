@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/scenario_seed.schema.json",
+  "title": "ScenarioSeed",
+  "description": "Frozen, bucketed projection of a DataBook — the ONLY thing L3 may read. Carries no raw market numbers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seed_id", "databook_id", "rng_seed", "market_scenario_label", "ordinal_context"],
+  "properties": {
+    "seed_id": { "type": "string" },
+    "databook_id": { "type": "string" },
+    "rng_seed": { "type": "integer" },
+    "market_scenario_label": { "type": "string" },
+    "ordinal_context": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "seed_hash": { "type": "string" }
+  }
+}

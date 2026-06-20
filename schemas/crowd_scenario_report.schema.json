@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/crowd_scenario_report.schema.json",
+  "title": "CrowdScenarioReport",
+  "description": "Pro report payload. Root is_authoritative is const false; no authoritative market/action fields exist anywhere in the schema; a disclaimer is mandatory (fail-closed).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["is_authoritative", "scenario", "reaction_chain", "persona_samples", "contrarian_modifier", "disclaimer"],
+  "properties": {
+    "is_authoritative": { "const": false },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": { "type": "integer" },
+        "deterministic_core": { "const": true },
+        "model": { "type": "string" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_id", "label"],
+      "properties": {
+        "scenario_id": { "type": "string" },
+        "label": { "type": "string" },
+        "shock_description": { "type": "string" },
+        "horizon": { "type": "string" }
+      }
+    },
+    "reaction_chain": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["order", "mechanism", "narrative"],
+        "properties": {
+          "order": { "type": "integer" },
+          "trigger_archetype": { "type": "string" },
+          "reacting_archetype": { "type": "string" },
+          "mechanism": { "type": "string" },
+          "narrative": { "type": "string" }
+        }
+      }
+    },
+    "persona_samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["archetype_id", "stance", "is_synthetic"],
+        "properties": {
+          "archetype_id": { "type": "string" },
+          "stance": { "type": "integer", "enum": [-1, 0, 1] },
+          "register": { "type": "string" },
+          "excerpt": { "type": "string" },
+          "is_synthetic": { "const": true }
+        }
+      }
+    },
+    "contrarian_modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "is_authoritative", "formula_id"],
+      "properties": {
+        "value": { "type": "number", "minimum": -1, "maximum": 1 },
+        "is_authoritative": { "const": false },
+        "formula_id": { "const": "contrarian-agg/1.0.0" },
+        "interpretation": { "enum": ["fade_overbought", "fade_oversold", "no_tilt"] }
+      }
+    },
+    "data_completeness": { "enum": ["full", "partial"] },
+    "disclaimer": { "type": "string", "minLength": 40 }
+  }
+}

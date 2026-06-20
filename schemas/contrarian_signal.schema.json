@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/contrarian_signal.schema.json",
+  "title": "ContrarianSignal",
+  "description": "The ONLY object L3 may emit. By schema it cannot carry price/nav/yield/weight/cap fields, and is_authoritative is const false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seed_id", "rng_seed", "n_personas", "contrarian_modifier", "is_authoritative", "formula_id"],
+  "properties": {
+    "seed_id": { "type": "string" },
+    "rng_seed": { "type": "integer" },
+    "n_personas": { "type": "integer", "minimum": 0, "maximum": 50 },
+    "contrarian_modifier": { "type": "number", "minimum": -1, "maximum": 1 },
+    "is_authoritative": { "const": false },
+    "formula_id": { "const": "contrarian-agg/1.0.0" },
+    "narrative_md": { "type": "string" },
+    "persona_samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["archetype_id", "stance", "is_synthetic"],
+        "properties": {
+          "archetype_id": { "type": "string" },
+          "stance": { "type": "integer", "enum": [-1, 0, 1] },
+          "register": { "type": "string" },
+          "excerpt": { "type": "string" },
+          "is_synthetic": { "const": true }
+        }
+      }
+    }
+  }
+}

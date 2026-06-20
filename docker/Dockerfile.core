@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# StackFund deterministic ENGINE image (L1->L2->L4->L5->L6).
+# Multi-stage + uv-locked (hash-pinned, reproducible) + non-root.
+# Runs with ZERO egress (compose sets network_mode: none) — it never phones home.
+# Secrets are NEVER baked here; the engine handles no live credentials.
+# ---------------------------------------------------------------------------
+
+# ---- builder ----
+FROM python:3.12-slim-bookworm AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0
+WORKDIR /app
+# 1) deps first (rarely change) -> cached layer
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
+# 2) then the source (changes often)
+COPY . /app
+
+# ---- runtime ----
+FROM python:3.12-slim-bookworm AS runtime
+RUN groupadd --system --gid 65532 nonroot \
+ && useradd  --system --uid 65532 --gid nonroot --home-dir /app --no-create-home nonroot
+WORKDIR /app
+COPY --from=builder --chown=nonroot:nonroot /app /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
+    PYTHONPATH=/app/src \
+    STACKFUND_SCHEMA_DIR=/app/schemas \
+    STACKFUND_FIXTURES=/app/fixtures
+USER nonroot
+ENTRYPOINT ["python", "-m", "stackfund"]
+CMD ["pipeline"]

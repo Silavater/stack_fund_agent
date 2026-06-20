@@ -1,0 +1,9 @@
+# Normalise to LF in the repo so Dockerfiles, shell/proxy configs and Python
+# behave identically on Linux/CI regardless of the author's OS.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

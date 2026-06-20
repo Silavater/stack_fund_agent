@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/rebalance_plan.schema.json",
+  "title": "RebalancePlan",
+  "description": "L4 hard-only output. No crowd/modifier field exists; every delta is pure hard data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan_id", "scorecard_id", "action"],
+  "properties": {
+    "plan_id": { "type": "string" },
+    "scorecard_id": { "type": "string" },
+    "action": { "enum": ["NO_ACTION", "REBALANCE"] },
+    "deltas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["etf_symbol", "hard_delta_pp"],
+        "properties": {
+          "etf_symbol": { "type": "string" },
+          "hard_delta_pp": { "type": "number" },
+          "hard_reasons": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "no_action_reason": { "type": ["string", "null"] }
+  }
+}

@@ -1,0 +1,59 @@
+name: stackfund
+
+# Two-service topology that makes the Core-B firewall physically true:
+#   * core  — deterministic money trunk, ZERO egress (network_mode: none)
+#   * agent — Hermes + Stripe + LLM, egress ONLY through an allowlisting proxy
+#
+# Requires Docker Engine >= 28 (hardened bridge isolation). Run:
+#   cp ../secrets/stripe_secret_key.txt.example ../secrets/stripe_secret_key.txt   # then edit
+#   docker compose -f docker/compose.yml up --build
+
+services:
+  core:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.core
+    image: stackfund-core:dev
+    network_mode: "none"            # hard default-deny: no eth0, only loopback
+    command: ["pipeline"]
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    image: stackfund-agent:dev
+    depends_on: [egress-proxy]
+    networks: [egress]
+    ports:
+      - "8642:8642"                 # Hermes gateway (OpenAI-compatible API)
+    environment:
+      HTTP_PROXY: "http://egress-proxy:3128"
+      HTTPS_PROXY: "http://egress-proxy:3128"
+      NO_PROXY: "localhost,127.0.0.1"
+      # The app reads keys from the mounted secret FILES, not from these envs.
+      STRIPE_SECRET_KEY_FILE: "/run/secrets/stripe_secret_key"
+      STRIPE_WEBHOOK_SECRET_FILE: "/run/secrets/stripe_webhook_secret"
+    secrets: [stripe_secret_key, stripe_webhook_secret]
+    volumes:
+      - hermes_data:/opt/data
+
+  egress-proxy:
+    # Default-deny forward proxy; only the allowlisted hosts in squid.conf pass.
+    image: ubuntu/squid:latest
+    networks: [egress, outbound]
+    volumes:
+      - ./egress-proxy/squid.conf:/etc/squid/squid.conf:ro
+
+networks:
+  egress:
+    internal: true                  # no direct host/LAN route; must use the proxy
+  outbound: {}                      # only the proxy is attached here
+
+volumes:
+  hermes_data: {}
+
+secrets:
+  stripe_secret_key:
+    file: ../secrets/stripe_secret_key.txt
+  stripe_webhook_secret:
+    file: ../secrets/stripe_webhook_secret.txt

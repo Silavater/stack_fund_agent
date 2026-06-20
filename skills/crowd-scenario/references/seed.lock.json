@@ -1,0 +1,10 @@
+{
+  "rng_seed": 42,
+  "roster_hash": "TBD-after-personas-finalised",
+  "model_id": "nemotron",
+  "temperature": 0.0,
+  "formula_id": "contrarian-agg/1.0.0",
+  "n_personas_default": 30,
+  "rounds": 2,
+  "notes": "Single source of truth for deterministic replay. modifier depends only on closed-vocab stance tokens, robust to LLM wording drift."
+}
