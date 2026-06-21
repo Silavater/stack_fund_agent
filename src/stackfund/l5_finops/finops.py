@@ -30,6 +30,25 @@ def record_earn(receipt_id: str, amount: float, currency: str = "TWD") -> Operat
     )
 
 
+def make_receipt(
+    receipt_id: str,
+    rtype: str,
+    status: str,
+    amount: float,
+    currency: str = "TWD",
+    reason: str | None = None,
+) -> OperationalReceipt:
+    """Build an OperationalReceipt from a (real Stripe or stub) payment result."""
+    return OperationalReceipt(
+        receipt_id=receipt_id,
+        type=rtype,
+        status=status,
+        amount=amount,
+        currency=currency,
+        reason=reason,
+    )
+
+
 def attempt_spend(
     receipt_id: str, amount: float, cap_remaining: float, currency: str = "TWD"
 ) -> OperationalReceipt:

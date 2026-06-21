@@ -34,7 +34,14 @@ from stackfund.l1_databook.book import LIVE_MOMENTUM_FIELDS, LIVE_PRICE_FIELDS
 from stackfund.l2_scorecard import build_scorecard
 from stackfund.l3_crowd import run_scenario
 from stackfund.l4_portfolio import build_rebalance_plan
-from stackfund.l5_finops import attempt_spend, operational_pnl, record_earn
+from stackfund.l5_finops import (
+    EARN,
+    SPEND,
+    attempt_spend,
+    make_receipt,
+    operational_pnl,
+    record_earn,
+)
 from stackfund.l6_audit import crowd_report_provenance, decision_provenance
 from stackfund.ledgers import experiment_ledger, finops_ledger, portfolio_ledger
 from stackfund.report import compose_divergence
@@ -178,6 +185,54 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_finops(args: argparse.Namespace) -> int:
+    from stackfund.l5_finops import stripe_client
+
+    cap_remaining = 500.0
+    receipts = None
+
+    if args.live and stripe_client.is_configured():
+        try:
+            print("Stripe: LIVE (test mode) — creating real test-mode objects")
+            earn = stripe_client.create_payment(299.0, "twd", "StackFund Pro subscription (test)")
+            spend = stripe_client.create_payment(120.0, "twd", "SaaS/API provisioning (test)")
+            cap_remaining -= 120.0
+            receipts = [
+                make_receipt(earn["id"], EARN, earn["status"], 299.0, "TWD", "Pro subscription"),
+                make_receipt(spend["id"], SPEND, spend["status"], 120.0, "TWD", "provision tool"),
+                # VoI cap refuses the next spend BEFORE any Stripe call (agency beat).
+                attempt_spend("spend_refused", 999.0, cap_remaining),
+            ]
+        except Exception as exc:
+            print(f"  Stripe LIVE failed: {type(exc).__name__}: {exc}  -> falling back to stub")
+            receipts = None
+            cap_remaining = 500.0
+
+    if receipts is None:
+        if args.live and not stripe_client.is_configured():
+            print("Stripe: stub (no test key in secrets/stripe_secret_key.txt)")
+        elif not args.live:
+            print("Stripe: stub (pass --live for real Stripe test mode)")
+        receipts = [
+            record_earn("earn_001", 299.0),
+            attempt_spend("spend_001", 120.0, cap_remaining),
+            attempt_spend("spend_002", 999.0, cap_remaining - 120.0),
+        ]
+
+    pnl = operational_pnl("2026-06", receipts)
+    fin = finops_ledger("run_finops", receipts, pnl)
+    print(
+        f"\nFinOps Ledger (business; NOT ETF investment P&L): "
+        f"revenue={pnl.revenue} cost={pnl.cost} gross_margin={pnl.gross_margin}"
+    )
+    for r in fin.receipts:
+        print(
+            f"  {r.type:<14} {r.status:<10} {r.amount:>8.2f} {r.currency}  "
+            f"id={r.receipt_id}  {r.reason or ''}"
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="stackfund",
@@ -217,6 +272,14 @@ def main(argv: list[str] | None = None) -> int:
         help="fundamentals source (sitca is a documented stub -> falls back to fixture)",
     )
     p_fetch.set_defaults(func=cmd_fetch)
+
+    p_finops = sub.add_parser(
+        "finops", help="earn/spend/refused (stub, or --live real Stripe test mode)"
+    )
+    p_finops.add_argument(
+        "--live", action="store_true", help="use real Stripe test key from secrets/"
+    )
+    p_finops.set_defaults(func=cmd_finops)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

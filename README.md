@@ -73,6 +73,9 @@ uv run python -m stackfund fetch --symbol 0050 --live   # official TWSE price/vo
 uv run python -m stackfund pipeline      # L1→L2→L4 (+earn/spend/refused + P&L)
 uv run python -m stackfund crowd --symbol 0056   # L3 side-rail (dry-run)
 uv run python -m stackfund verify        # determinism check
+uv run python -m stackfund finops        # earn/spend/refused (stub) — add --live for real Stripe
+# real Stripe (test mode):  uv sync --extra stripe; put rk_test_… in secrets/stripe_secret_key.txt
+uv run python -m stackfund finops --live
 uv run pytest -q              # tests (incl. firewall)
 uv run lint-imports           # architectural firewall contracts
 ```
