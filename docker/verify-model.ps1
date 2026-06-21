@@ -16,6 +16,12 @@ if (-not (Test-Path $EnvSrc)) {
 }
 Copy-Item $EnvSrc (Join-Path $Data ".env") -Force
 
+# Model/provider passed explicitly so Hermes skips model-name auto-detection
+# (which would override an OpenAI-compatible custom endpoint). Override via env.
+$Model    = if ($env:HERMES_MODEL)    { $env:HERMES_MODEL }    else { "gpt-5.5" }
+$Provider = if ($env:HERMES_PROVIDER) { $env:HERMES_PROVIDER } else { "custom" }
+
 docker run --rm `
+  --env-file $EnvSrc `
   -v "${Data}:/opt/data" `
-  nousresearch/hermes-agent:latest -z "Reply with exactly: HERMES OK"
+  nousresearch/hermes-agent:latest -z "Reply with exactly: HERMES OK" -m $Model --provider $Provider

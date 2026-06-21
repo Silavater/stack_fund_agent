@@ -25,7 +25,27 @@ if [ "${_huid}" -ge 1 ] && [ "${_huid}" -lt 65536 ]; then
   UIDOPT=(-e "HERMES_UID=${_huid}" -e "HERMES_GID=$(id -g)")
 fi
 
+# Model/provider passed explicitly so Hermes skips model-name auto-detection
+# (which would override an OpenAI-compatible custom endpoint). Override via env.
+MODEL="${HERMES_MODEL:-gpt-5.5}"
+PROVIDER="${HERMES_PROVIDER:-custom}"
+
+# Git Bash / MSYS (Windows) rewrites the container side of -v/--env-file paths and
+# breaks the bind mount (symptom: agent runs against an empty data dir -> no final
+# response). Disable conversion and hand docker a native C:/ path.
+DOCK_DATA="${DATA}"; DOCK_ENV="${ENV_SRC}"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    export MSYS_NO_PATHCONV=1
+    if command -v cygpath >/dev/null 2>&1; then
+      DOCK_DATA="$(cygpath -m "${DATA}")"
+      DOCK_ENV="$(cygpath -m "${ENV_SRC}")"
+    fi
+    ;;
+esac
+
 exec docker run --rm \
+  --env-file "${DOCK_ENV}" \
   "${UIDOPT[@]}" \
-  -v "${DATA}:/opt/data" \
-  nousresearch/hermes-agent:latest -z "Reply with exactly: HERMES OK"
+  -v "${DOCK_DATA}:/opt/data" \
+  nousresearch/hermes-agent:latest -z "Reply with exactly: HERMES OK" -m "${MODEL}" --provider "${PROVIDER}"
