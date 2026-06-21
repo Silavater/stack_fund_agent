@@ -24,7 +24,13 @@ from stackfund.contracts.costs import CostModel
 from stackfund.contracts.market import MarketState
 from stackfund.contracts.policy import PolicySet
 from stackfund.contracts.portfolio import PortfolioState
-from stackfund.l1_databook import load_databook, load_databook_from_fixture, make_seed
+from stackfund.l1_databook import (
+    SitcaFundamentals,
+    load_databook,
+    load_databook_from_fixture,
+    make_seed,
+)
+from stackfund.l1_databook.book import LIVE_MOMENTUM_FIELDS, LIVE_PRICE_FIELDS
 from stackfund.l2_scorecard import build_scorecard
 from stackfund.l3_crowd import run_scenario
 from stackfund.l4_portfolio import build_rebalance_plan
@@ -154,16 +160,21 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def cmd_fetch(args: argparse.Namespace) -> int:
-    db = load_databook(args.symbol, live=args.live, fixtures_dir=_fixtures_dir())
-    tag = (
-        "LIVE (TWSE price/volume + fixture fundamentals)"
-        if db.freshness == "live"
-        else "frozen fixture"
+    provider = SitcaFundamentals() if args.provider == "sitca" else None
+    db = load_databook(
+        args.symbol, live=args.live, fixtures_dir=_fixtures_dir(), fundamentals=provider
     )
-    print(f"DataBook[{db.etf_symbol}] freshness={db.freshness} ({tag})")
-    print(f"  observed_at={db.observed_at}  book_hash={db.book_hash}")
+    print(f"DataBook[{db.etf_symbol}] freshness={db.freshness}  observed_at={db.observed_at}")
+    print(f"  book_hash={db.book_hash}  fundamentals_provider={args.provider}")
     for k, v in sorted(db.metrics.items()):
         print(f"  {k}: {v}")
+    if db.freshness == "live":
+        live = [f for f in (*LIVE_PRICE_FIELDS, *LIVE_MOMENTUM_FIELDS) if f in db.metrics]
+        ref = sorted(f for f in db.metrics if f not in live)
+        print(f"  [live: TWSE+Yahoo] {', '.join(live)}")
+        print(f"  [reference: {args.provider}] {', '.join(ref)}")
+    else:
+        print(f"  [all reference: {args.provider}/fixture]")
     return 0
 
 
@@ -198,6 +209,12 @@ def main(argv: list[str] | None = None) -> int:
     p_fetch.add_argument("--symbol", default="0050")
     p_fetch.add_argument(
         "--live", action="store_true", help="overlay official TWSE daily price/volume"
+    )
+    p_fetch.add_argument(
+        "--provider",
+        choices=["fixture", "sitca"],
+        default="fixture",
+        help="fundamentals source (sitca is a documented stub -> falls back to fixture)",
     )
     p_fetch.set_defaults(func=cmd_fetch)
 

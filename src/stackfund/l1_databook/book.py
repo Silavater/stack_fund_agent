@@ -2,8 +2,9 @@
 
 Frozen fixtures are the default (deterministic core, zero egress). ``load_databook``
 can OPT IN to a live overlay: official TWSE price/volume + a Yahoo-derived
-``price_5d_return``. ETF fundamentals (yield / NAV / tracking error) are carried
-from the fixture because no free TWSE feed exposes them for ETFs.
+``price_5d_return``. ETF fundamentals (yield / NAV / discount_premium /
+tracking_error) come from a pluggable ``FundamentalsProvider`` — default is the
+fixture (labelled *reference*); pass a real provider to make them live.
 """
 
 from __future__ import annotations
@@ -15,6 +16,11 @@ from pathlib import Path
 from typing import Any
 
 from stackfund.contracts.databook import DataBook
+from stackfund.l1_databook.fundamentals import FixtureFundamentals, FundamentalsProvider
+
+# Fields that become live via the network connectors (not fundamentals).
+LIVE_PRICE_FIELDS = ("price", "volume_shares")  # TWSE STOCK_DAY_ALL
+LIVE_MOMENTUM_FIELDS = ("price_5d_return",)  # Yahoo chart series
 
 
 def _hash(payload: dict) -> str:
@@ -61,16 +67,32 @@ def _safe(fn: Callable[[], Any]) -> Any:
 
 
 def load_databook(
-    symbol: str, live: bool = False, fixtures_dir: str | Path | None = None
+    symbol: str,
+    live: bool = False,
+    fixtures_dir: str | Path | None = None,
+    fundamentals: FundamentalsProvider | None = None,
 ) -> DataBook:
-    """Build a DataBook for ``symbol``. With ``live=True``, overlay official TWSE
-    daily price/volume + a Yahoo-derived 5-day return on the fixture fundamentals
-    (freshness=live); otherwise return the frozen fixture unchanged."""
+    """Build a DataBook for ``symbol``.
+
+    * ``live=True`` overlays official TWSE daily price/volume + a Yahoo-derived
+      5-day return (freshness=live).
+    * ``fundamentals`` is a pluggable provider for yield/NAV/etc.; default is the
+      fixture (reference). A real provider applying live fundamentals also marks
+      the book live.
+    """
     base = Path(fixtures_dir) if fixtures_dir else _default_fixtures_dir()
     data = json.loads((base / f"etf_{symbol}.json").read_text(encoding="utf-8"))
-    metrics = dict(data["metrics"])
+    fixture_metrics = dict(data["metrics"])
     observed_at = data["observed_at"]
     freshness = data.get("freshness", "frozen")
+    metrics = dict(fixture_metrics)
+
+    provider = fundamentals or FixtureFundamentals(fixture_metrics)
+    supplied = provider.fundamentals(symbol)
+    if supplied:
+        metrics.update(supplied)
+        if provider.name != "fixture":
+            freshness = "live"  # a real fundamentals feed was applied
 
     if live:
         from stackfund.l1_databook.sources import twse, yahoo

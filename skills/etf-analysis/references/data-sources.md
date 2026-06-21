@@ -31,11 +31,24 @@
   - `range=1mo` daily **close series** → live **`price_5d_return`** (and a 20-day
     moving average) computed in Python.
 
-## What is live vs frozen (with `--live`)
-- **Live:** `price`, `volume` (TWSE STOCK_DAY_ALL) + `price_5d_return` (Yahoo series).
-- **Frozen (fixture):** `yield`, `nav` / `discount_premium`, `tracking_error`,
-  `catalyst_strength` — no free TWSE ETF feed; clearly labelled. Next extension:
-  a dedicated ETF-NAV / distribution connector.
+## What is live vs reference (with `--live`)
+- **Live:** `price`, `volume_shares` (TWSE STOCK_DAY_ALL) + `price_5d_return`
+  (Yahoo series). These are the decision-driving signals.
+- **Reference:** `yield`, `nav`, `discount_premium`, `tracking_error`,
+  `catalyst_strength` — supplied by a **pluggable `FundamentalsProvider`**
+  (`src/stackfund/l1_databook/fundamentals.py`). Default = the fixture, labelled
+  reference. `stackfund fetch` prints the live-vs-reference split explicitly.
+
+### Why ETF fundamentals are not live (verified 2026-06)
+There is no clean free JSON feed for TW ETF NAV / yield:
+- TWSE OpenAPI `BWIBBU_ALL` (P/E·yield·P/B) **excludes ETFs**.
+- Yahoo v7/v10 (navPrice / trailingAnnualDividendYield) require a cookie+crumb,
+  currently region-gated (401 / Invalid Crumb).
+- SITCA (`IN2422`) serves an ASP.NET `__VIEWSTATE` form (POST + HTML scrape).
+
+So fundamentals are a **documented seam**: implement `FundamentalsProvider`
+against a stable feed and pass it to `load_databook(..., fundamentals=...)` — the
+`SitcaFundamentals` stub shows where. A real provider's values mark the book live.
 
 ### Mid-session fallback (from upstream)
 When live intraday is limited, use TWSE daily proxies and state the limitation:
