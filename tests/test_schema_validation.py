@@ -65,9 +65,11 @@ def test_operational_receipt_schemas():
     validate(as_jsonable(attempt_spend("s1", 999.0, 100.0)), "operational_receipt.schema.json")
 
 
-def test_baked_replay_scenario_matches_schema():
-    data = json.loads((ROOT / "fixtures" / "scenario_0056_cut.json").read_text(encoding="utf-8"))
-    validate(data, "crowd_scenario_report.schema.json")
+def test_baked_replay_scenarios_match_schema():
+    files = sorted((ROOT / "fixtures").glob("scenario_*.json"))
+    assert files, "expected baked scenario fixtures"
+    for f in files:
+        validate(json.loads(f.read_text(encoding="utf-8")), "crowd_scenario_report.schema.json")
 
 
 def test_planted_market_field_is_rejected():

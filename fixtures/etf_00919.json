@@ -1,0 +1,14 @@
+{
+  "symbol": "00919",
+  "observed_at": "2026-06-19",
+  "freshness": "frozen",
+  "metrics": {
+    "price": 24.5,
+    "nav": 24.6,
+    "discount_premium": -0.41,
+    "tracking_error": 0.5,
+    "yield": 9.2,
+    "price_5d_return": 1.2,
+    "catalyst_strength": 0.2
+  }
+}

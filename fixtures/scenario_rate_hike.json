@@ -1,0 +1,28 @@
+{
+  "non_authoritative": true,
+  "engine": { "seed": 42, "deterministic_core": true, "model": "Hermes-4-70B" },
+  "scenario": {
+    "scenario_id": "rate_hike",
+    "label": "升息一碼情境",
+    "shock_description": "假設性壓力情境:央行升息一碼(非預測、非陳述指名 ETF 將如何變動)",
+    "horizon": "T+5"
+  },
+  "reaction_chain": [
+    { "order": 1, "trigger_archetype": "day_trader", "reacting_archetype": "panic_retail", "mechanism": "stop_loss_cascade", "narrative": "當沖客若先停損電子權值,賣壓可能擴散。" },
+    { "order": 2, "trigger_archetype": "panic_retail", "reacting_archetype": "long_term_holder", "mechanism": "contagion", "narrative": "恐慌散戶若殺出,存股族這類人格可能照扣不動。" },
+    { "order": 3, "trigger_archetype": "yield_seeker", "reacting_archetype": "foreign_institutional_lens", "mechanism": "rotation", "narrative": "殖利率派可能轉向高息標的,外資視角觀望。" }
+  ],
+  "persona_samples": [
+    { "archetype_id": "day_trader", "stance": -1, "register": "zh-TW", "excerpt": "[synthetic] 升息先停損,這類人格可能殺出電子權值。", "is_synthetic": true },
+    { "archetype_id": "long_term_holder", "stance": 1, "register": "zh-TW", "excerpt": "[synthetic] 這類人格可能照扣不動。", "is_synthetic": true }
+  ],
+  "narrative_divergence": {
+    "crowd_consensus": "bearish",
+    "engine_posture": "neutral",
+    "divergence_bucket": "MEDIUM",
+    "narrative_intensity": 2,
+    "non_authoritative": true
+  },
+  "data_completeness": "full",
+  "disclaimer": "情境推演·合成人格情境分布·不代表真實市場調查·非預測·未經回測;所有金額與權重均由 deterministic 程式計算;StackFund 全程不下任何證券委託單。"
+}

@@ -45,6 +45,19 @@ def test_parse_yahoo_malformed_returns_none():
     assert yahoo.parse_chart({"chart": {"result": []}}, "0050") is None
 
 
+def test_parse_yahoo_chart_series_5d_return():
+    payload = json.loads((SAMPLES / "yahoo_0056_history.sample.json").read_text(encoding="utf-8"))
+    s = yahoo.parse_chart_series(payload, "0056")
+    assert s is not None
+    assert s["n_closes"] == 24
+    assert s["price_5d_return_pct"] == 6.473
+    assert s["price"] == 52.8
+
+
+def test_parse_yahoo_series_malformed_returns_none():
+    assert yahoo.parse_chart_series({"chart": {"result": []}}, "0056") is None
+
+
 @pytest.mark.skipif(
     os.environ.get("STACKFUND_LIVE") != "1",
     reason="live network test — set STACKFUND_LIVE=1 to run",
@@ -53,3 +66,14 @@ def test_live_twse_quote():
     q = twse.fetch_etf_quote("0050")
     assert q is not None
     assert q["close"] and q["close"] > 0
+
+
+@pytest.mark.skipif(
+    os.environ.get("STACKFUND_LIVE") != "1",
+    reason="live network test — set STACKFUND_LIVE=1 to run",
+)
+def test_live_yahoo_history():
+    s = yahoo.fetch_yahoo_history("0056")
+    assert s is not None
+    assert s["n_closes"] >= 6
+    assert s["price_5d_return_pct"] is not None

@@ -25,8 +25,17 @@
 
 ### Yahoo Finance — `src/stackfund/l1_databook/sources/yahoo.py`
 - Endpoint: `https://query1.finance.yahoo.com/v8/finance/chart/<symbol>.TW`
-- Unauthenticated; returns a `meta` block (`regularMarketPrice`,
-  `chartPreviousClose`, `currency`). Used as a **price cross-check** on the TWSE close.
+- Unauthenticated. Two uses:
+  - `range=5d` `meta` block (`regularMarketPrice`, `chartPreviousClose`,
+    `currency`) — **price cross-check** on the TWSE close.
+  - `range=1mo` daily **close series** → live **`price_5d_return`** (and a 20-day
+    moving average) computed in Python.
+
+## What is live vs frozen (with `--live`)
+- **Live:** `price`, `volume` (TWSE STOCK_DAY_ALL) + `price_5d_return` (Yahoo series).
+- **Frozen (fixture):** `yield`, `nav` / `discount_premium`, `tracking_error`,
+  `catalyst_strength` — no free TWSE ETF feed; clearly labelled. Next extension:
+  a dedicated ETF-NAV / distribution connector.
 
 ### Mid-session fallback (from upstream)
 When live intraday is limited, use TWSE daily proxies and state the limitation:
