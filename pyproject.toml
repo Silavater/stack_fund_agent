@@ -50,16 +50,26 @@ testpaths = ["tests"]
 root_package = "stackfund"
 
 [[tool.importlinter.contracts]]
-name = "L4 firewall: portfolio manager must not import the crowd side-rail (L3 / ContrarianSignal)"
+name = "L4 firewall: portfolio manager must not import the crowd side-rail or any FACE artifact"
 type = "forbidden"
 source_modules = ["stackfund.l4_portfolio"]
-forbidden_modules = ["stackfund.l3_crowd", "stackfund.contracts.contrarian_signal"]
+forbidden_modules = [
+  "stackfund.l3_crowd",
+  "stackfund.contracts.crowd_narrative",
+  "stackfund.contracts.narrative_divergence",
+  "stackfund.report",
+]
 
 [[tool.importlinter.contracts]]
-name = "L5 spend must not be triggered by the crowd side-rail"
+name = "L5 spend must not be triggered by the crowd side-rail or any FACE artifact"
 type = "forbidden"
 source_modules = ["stackfund.l5_finops"]
-forbidden_modules = ["stackfund.l3_crowd", "stackfund.contracts.contrarian_signal"]
+forbidden_modules = [
+  "stackfund.l3_crowd",
+  "stackfund.contracts.crowd_narrative",
+  "stackfund.contracts.narrative_divergence",
+  "stackfund.report",
+]
 
 [[tool.importlinter.contracts]]
 name = "Deterministic trunk flows downward only (L4 -> L2 -> L1)"

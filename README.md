@@ -12,18 +12,26 @@ Business Hackathon** (NVIDIA × Stripe × Nous Research).
 
 ## Architecture — Core-B (ENGINE + FACE, firewalled)
 
-- **ENGINE** (deterministic Python trunk): `L1` data book → `L2` scorecard →
-  `L4` portfolio manager → `L5` finops → `L6` audit. Computes every number.
-  `NO_ACTION` is a first-class output.
+- **ENGINE** (deterministic Python trunk): `L1` data book (eligibility gate) →
+  `L2` scorecard → `L4` portfolio manager → `L5` finops → `L6` audit. Computes
+  every number. `L4` consumes a full **`AuthoritativeState`** (ScoreCard +
+  PortfolioState + PolicySet + CostModel + MarketState) — never just a score —
+  so `NO_ACTION` is first-class with machine-readable `reason_codes`, including
+  *"rebalance not worth the transaction cost"* (`EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`).
 - **FACE** (non-authoritative narrative side-rail): `L3` crowd scenario engine.
-  Reads only a *frozen, bucketed* `ScenarioSeed`; emits only a `ContrarianSignal`
-  (narrative + a bounded `contrarian_modifier ∈ [-1,+1]`, `is_authoritative=false`).
-  **It never decides a number, never influences an action, and never writes back
-  to the decision path.**
+  Reads only a *frozen, bucketed* `ScenarioSeed`; emits only a `CrowdNarrative`
+  (a **categorical** crowd stance — *no numeric scalar* anything could wire back).
+  The crowd-vs-engine **`NarrativeDivergence`** (`LOW/MEDIUM/HIGH` bucket,
+  `non_authoritative`) is computed at *report* time by the Report Composer, which
+  reads the L6 snapshot + the narrative but **never writes back** to a decision.
 
-The firewall is **structural and machine-checked** — L4/L5 do not import L3 or
-its signal (see `pyproject.toml` `import-linter` contracts +
-`tests/test_firewall_no_imports.py` + `tests/test_l4_signature.py`).
+Ledgers are kept strictly separate — **Portfolio (simulated, no orders)** vs
+**FinOps (Stripe, the business)** vs **Experiment** — so a Stripe test charge is
+never shown as ETF investment P&L.
+
+The firewall is **structural and machine-checked** — L4/L5 do not import L3, any
+FACE artifact, or the report module (see `pyproject.toml` `import-linter`
+contracts + `tests/test_firewall_no_imports.py` + `tests/test_l4_signature.py`).
 
 ### Docker ⊂ OpenShell ⊂ NemoClaw (layered, not alternatives)
 ```
@@ -41,7 +49,8 @@ Dockerizing is the foundation; OpenShell/NemoClaw wrap the container. See
 ## Repo layout
 ```
 src/stackfund/        ENGINE: l1_databook l2_scorecard l4_portfolio l5_finops l6_audit
-                      + l3_crowd (side-rail) + contracts/ (typed firewall) + cli.py
+                      + l3_crowd (side-rail) + report/ (composer) + ledgers.py
+                      + contracts/ (typed firewall) + cli.py
 skills/               Agent Skills (SKILL.md + references/ + thin scripts/)
                         etf-analysis/   crowd-scenario/
 schemas/              versioned JSON Schemas (ScenarioSeed, ContrarianSignal, …)

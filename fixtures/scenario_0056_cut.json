@@ -1,5 +1,5 @@
 {
-  "is_authoritative": false,
+  "non_authoritative": true,
   "engine": { "seed": 42, "deterministic_core": true, "model": "Hermes-4-70B" },
   "scenario": {
     "scenario_id": "0056_cut",
@@ -16,12 +16,13 @@
     { "archetype_id": "yield_seeker", "stance": -1, "register": "zh-TW", "excerpt": "[synthetic] 配息變少這類人格可能換股。", "is_synthetic": true },
     { "archetype_id": "long_term_holder", "stance": 1, "register": "zh-TW", "excerpt": "[synthetic] 這類人格可能照扣不動。", "is_synthetic": true }
   ],
-  "contrarian_modifier": {
-    "value": 0.42,
-    "is_authoritative": false,
-    "formula_id": "contrarian-agg/1.0.0",
-    "interpretation": "fade_overbought"
+  "narrative_divergence": {
+    "crowd_consensus": "bearish",
+    "engine_posture": "neutral",
+    "divergence_bucket": "MEDIUM",
+    "narrative_intensity": 2,
+    "non_authoritative": true
   },
   "data_completeness": "full",
-  "disclaimer": "情境推演·合成人格·非真實民意·非預測·未經回測;所有金額與權重均由 deterministic 程式計算;StackFund 全程不下任何證券委託單。"
+  "disclaimer": "情境推演·合成人格情境分布·不代表真實市場調查·非預測·未經回測;所有金額與權重均由 deterministic 程式計算;StackFund 全程不下任何證券委託單。"
 }

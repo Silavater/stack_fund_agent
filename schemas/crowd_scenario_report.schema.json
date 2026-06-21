@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://stackfund.dev/schemas/crowd_scenario_report.schema.json",
   "title": "CrowdScenarioReport",
-  "description": "Pro report payload. Root is_authoritative is const false; no authoritative market/action fields exist anywhere in the schema; a disclaimer is mandatory (fail-closed).",
+  "description": "Pro report payload. Root non_authoritative is const true; no authoritative market/action fields; the only decision-shaped output is a categorical narrative_divergence (no scalar). A disclaimer is mandatory (fail-closed).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["is_authoritative", "scenario", "reaction_chain", "persona_samples", "contrarian_modifier", "disclaimer"],
+  "required": ["non_authoritative", "scenario", "reaction_chain", "persona_samples", "narrative_divergence", "disclaimer"],
   "properties": {
-    "is_authoritative": { "const": false },
+    "non_authoritative": { "const": true },
     "engine": {
       "type": "object",
       "additionalProperties": false,
@@ -58,15 +58,16 @@
         }
       }
     },
-    "contrarian_modifier": {
+    "narrative_divergence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "is_authoritative", "formula_id"],
+      "required": ["crowd_consensus", "engine_posture", "divergence_bucket", "narrative_intensity", "non_authoritative"],
       "properties": {
-        "value": { "type": "number", "minimum": -1, "maximum": 1 },
-        "is_authoritative": { "const": false },
-        "formula_id": { "const": "contrarian-agg/1.0.0" },
-        "interpretation": { "enum": ["fade_overbought", "fade_oversold", "no_tilt"] }
+        "crowd_consensus": { "enum": ["bearish", "neutral", "bullish"] },
+        "engine_posture": { "enum": ["bearish", "neutral", "bullish"] },
+        "divergence_bucket": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "narrative_intensity": { "enum": [1, 2, 3] },
+        "non_authoritative": { "const": true }
       }
     },
     "data_completeness": { "enum": ["full", "partial"] },

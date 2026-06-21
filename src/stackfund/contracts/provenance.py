@@ -19,6 +19,8 @@ class DecisionProvenance:
     hard_signals: tuple[tuple[str, float], ...] = field(default_factory=tuple)
     final_delta_pp: float = 0.0  # == hard_delta_pp, by construction
     action: str = ""
+    reason_codes: tuple[str, ...] = field(default_factory=tuple)
+    authoritative_input_hash: str = ""
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,8 @@ class CrowdReportProvenance:
     report_id: str
     seed_id: str
     rng_seed: int
-    contrarian_modifier: float
+    crowd_consensus: str
+    engine_posture: str
+    divergence_bucket: str
     narrative_digest: str  # sha256 of the narrative
-    is_authoritative: bool = False  # always False; for narrative audit only
+    non_authoritative: bool = True  # always True; for narrative audit only

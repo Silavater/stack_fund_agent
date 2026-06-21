@@ -2,8 +2,9 @@
 alongside the declarative import-linter contracts in pyproject.toml.
 
 Encodes the Core-B invariant: the L4 portfolio manager (and the L5 spend path)
-must NEVER import the L3 crowd side-rail or its ContrarianSignal — not "zero it
-out and re-run", but "structurally never wired in".
+must NEVER import the L3 crowd side-rail or any FACE artifact (CrowdNarrative /
+NarrativeDivergence) — not "zero it out and re-run", but "structurally never
+wired in".
 """
 
 from __future__ import annotations
@@ -17,8 +18,20 @@ SRC = pathlib.Path(__file__).resolve().parents[1] / "src" / "stackfund"
 
 # package -> tokens it must never import
 GUARDED = {
-    "l4_portfolio": ("l3_crowd", "contrarian_signal", "ContrarianSignal"),
-    "l5_finops": ("l3_crowd", "contrarian_signal", "ContrarianSignal"),
+    "l4_portfolio": (
+        "l3_crowd",
+        "crowd_narrative",
+        "narrative_divergence",
+        "CrowdNarrative",
+        "NarrativeDivergence",
+    ),
+    "l5_finops": (
+        "l3_crowd",
+        "crowd_narrative",
+        "narrative_divergence",
+        "CrowdNarrative",
+        "NarrativeDivergence",
+    ),
 }
 
 
@@ -31,7 +44,7 @@ def _imported_names(path: pathlib.Path):
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
             yield module, node.lineno
-            for alias in node.names:  # catch `from x import ContrarianSignal`
+            for alias in node.names:  # catch `from x import NarrativeDivergence`
                 yield f"{module}.{alias.name}", node.lineno
 
 
@@ -58,11 +71,10 @@ def test_layer_does_not_import_crowd_side_rail(py, forbidden):
         for bad in forbidden
         if bad.lower() in name.lower()
     ]
-    assert not violations, "FIREWALL BREACH (decision path must not touch L3):\n" + "\n".join(
+    assert not violations, "FIREWALL BREACH (decision path must not touch L3/FACE):\n" + "\n".join(
         violations
     )
 
 
 def test_cases_are_non_empty():
-    # Guard against the guard silently passing because it found no files.
     assert _CASES, "expected L4/L5 python files to scan"

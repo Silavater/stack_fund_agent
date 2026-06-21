@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stackfund.dev/schemas/narrative_divergence.schema.json",
+  "title": "NarrativeDivergence",
+  "description": "Report-time FACE artifact. Categorical crowd-vs-engine divergence — NO additive scalar. Replaces contrarian_modifier. Non-authoritative.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seed_id", "crowd_consensus", "engine_posture", "divergence_bucket", "narrative_intensity", "non_authoritative"],
+  "properties": {
+    "seed_id": { "type": "string" },
+    "crowd_consensus": { "enum": ["bearish", "neutral", "bullish"] },
+    "engine_posture": { "enum": ["bearish", "neutral", "bullish"] },
+    "divergence_bucket": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+    "narrative_intensity": { "enum": [1, 2, 3] },
+    "non_authoritative": { "const": true },
+    "synthetic_population": { "const": true },
+    "artifact_type": { "const": "NarrativeDivergence" },
+    "storylines": { "type": "array", "items": { "type": "string" } }
+  }
+}
