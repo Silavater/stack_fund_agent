@@ -70,7 +70,7 @@ def verify_key() -> dict:
     """Cheap connectivity/permission check. Returns {livemode, ...}."""
     stripe = _client()
     bal = stripe.Balance.retrieve()
-    return {"livemode": bal.get("livemode"), "object": bal.get("object")}
+    return {"livemode": bal["livemode"], "object": bal["object"]}
 
 
 def create_payment(
