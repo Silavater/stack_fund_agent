@@ -12,6 +12,8 @@ Business Hackathon** (NVIDIA × Stripe × Nous Research).
 
 ## Architecture — Core-B (ENGINE + FACE, firewalled)
 
+> Full write-up: **[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)** · 中文版 **[doc/ARCHITECTURE.zh-TW.md](doc/ARCHITECTURE.zh-TW.md)**
+
 - **ENGINE** (deterministic Python trunk): `L1` data book (eligibility gate) →
   `L2` scorecard → `L4` portfolio manager → `L5` finops → `L6` audit. Computes
   every number. `L4` consumes a full **`AuthoritativeState`** (ScoreCard +
@@ -59,7 +61,7 @@ tests/                firewall guards + schema validation + engine + CLI
 docker/               Dockerfile.core, Dockerfile.agent, compose.yml, egress-proxy/
 policy/               openshell.yaml, nemoclaw-blueprint.yaml
 .github/workflows/    ci.yml  (ruff → import-linter → pytest → docker build)
-doc/                  StackFund_可行性報告.md, StackFund_架構分析_Mermaid.md
+doc/                  ARCHITECTURE.md (+ .zh-TW), StackFund_可行性報告.md, …_Mermaid.md
 ```
 
 ## Quickstart
