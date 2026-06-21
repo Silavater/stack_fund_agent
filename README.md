@@ -55,7 +55,7 @@ src/stackfund/        ENGINE: l1_databook l2_scorecard l4_portfolio l5_finops l6
                       + contracts/ (typed firewall) + cli.py
 skills/               Agent Skills (SKILL.md + references/ + thin scripts/)
                         etf-analysis/   crowd-scenario/
-schemas/              versioned JSON Schemas (ScenarioSeed, ContrarianSignal, …)
+schemas/              versioned JSON Schemas (ScenarioSeed, CrowdNarrative, …)
 fixtures/             frozen ETF samples + baked replay scenario
 tests/                firewall guards + schema validation + engine + CLI
 docker/               Dockerfile.core, Dockerfile.agent, compose.yml, egress-proxy/

@@ -29,6 +29,14 @@ fi
 mkdir -p "${DATA}"
 cp "${ENV_SRC}" "${DATA}/.env"
 
+# Refresh the StackFund agent identity. SOUL.md is the always-loaded "developer"
+# prompt (injected verbatim every message); the base image ships a read-only stub,
+# so clear it before copying our persona over it.
+if [ -f "${ROOT}/agent/SOUL.md" ]; then
+  rm -f "${DATA}/SOUL.md" 2>/dev/null || true
+  cp "${ROOT}/agent/SOUL.md" "${DATA}/SOUL.md"
+fi
+
 # Git Bash / MSYS (Windows) rewrites the container side of -v/--env-file paths and
 # breaks the bind mount. Disable conversion and hand docker native C:/ paths.
 DOCK_DATA="${DATA}"; DOCK_ENV="${ENV_SRC}"; DOCK_SKILLS="${SKILLS}"

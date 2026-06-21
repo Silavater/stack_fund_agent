@@ -1,11 +1,11 @@
 ---
 name: stackfund-crowd-scenario
-description: Rehearse (not predict) how Taiwan retail ETF investor archetypes might react to an already-computed market event, producing a second-order reaction-chain narrative plus a bounded, NON-AUTHORITATIVE contrarian_modifier. Scenario stress-test, not sentiment forecast. Use for the Pro crowd-scenario report. It never decides any number, never influences any action, and never writes back to the decision layer.
+description: Rehearse (not predict) how Taiwan retail ETF investor archetypes might react to an already-computed market event, producing a second-order reaction-chain narrative plus a categorical, NON-AUTHORITATIVE crowd_consensus (bearish / neutral / bullish — no numeric scalar). Scenario stress-test, not sentiment forecast. Use for the Pro crowd-scenario report. It never decides any number, never influences any action, and never writes back to the decision layer.
 license: MIT
 version: 1.0.0
 metadata:
   hermes:
-    tags: [scenario, crowd, contrarian, ETF, Taiwan, narrative, non-authoritative]
+    tags: [scenario, crowd, consensus, ETF, Taiwan, narrative, non-authoritative]
     firewall: non-authoritative
 ---
 
@@ -15,8 +15,9 @@ metadata:
 
 This is the **headline FACE**, deliberately firewalled from the decision path.
 It reads a frozen `ScenarioSeed` (bucketed ordinal context only — never raw
-numbers) and emits a `ContrarianSignal` (narrative + `contrarian_modifier ∈
-[-1,+1]`, `is_authoritative = false`). The modifier is **computed in Python**;
+numbers) and emits a `CrowdNarrative` (narrative + persona reactions + a
+**categorical `crowd_consensus ∈ {bearish, neutral, bullish}`**,
+`non_authoritative = true`). There is **no numeric / decision-shaped scalar**;
 the model only writes persona reaction *text*.
 
 ## When to use
@@ -30,9 +31,10 @@ python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056
 
 ## Hard rules (see references/firewall.md)
 - **G1** output whitelist: narrative / persona samples / stance counts / chain /
-  one scalar. Any price/NAV/NTD pattern is a schema violation → abort.
-- **G2** `is_authoritative` is hard-wired `false`.
-- **G3** L4/L5 never import this skill's signal (import-graph CI).
+  a categorical `crowd_consensus` label (no numeric scalar). Any price/NAV/NTD
+  pattern is a schema violation → abort.
+- **G2** `non_authoritative` is hard-wired `true`.
+- **G3** L4/L5 never import this skill's artifact (import-graph CI).
 - **G4** the model computes no number; numeric tokens in persona text are stripped.
 - **G5** determinism: `references/seed.lock.json` is the single source of truth.
 
@@ -40,5 +42,5 @@ python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056
 - `references/personas.md` — closed-set archetype taxonomy + behavioural priors.
 - `references/seed.lock.json` — rng_seed / model_id / temperature=0.
 - `references/firewall.md` — the executable firewall contract.
-- `references/output-schema.md` — `schemas/crowd_scenario_report.schema.json`.
+- `references/output-schema.md` — `schemas/crowd_narrative.schema.json`.
 - `references/clean-room.md` — AGPL boundary (honest provenance).
