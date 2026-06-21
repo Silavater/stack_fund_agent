@@ -69,6 +69,7 @@ doc/                  ARCHITECTURE.md (+ .zh-TW), StackFund_可行性報告.md, 
 ### Local (uv)
 ```bash
 uv sync                       # installs deps + dev tools
+uv run python -m stackfund fetch --symbol 0050 --live   # official TWSE price/volume (omit --live for frozen)
 uv run python -m stackfund pipeline      # L1→L2→L4 (+earn/spend/refused + P&L)
 uv run python -m stackfund crowd --symbol 0056   # L3 side-rail (dry-run)
 uv run python -m stackfund verify        # determinism check

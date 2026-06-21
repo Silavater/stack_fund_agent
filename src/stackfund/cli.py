@@ -24,7 +24,7 @@ from stackfund.contracts.costs import CostModel
 from stackfund.contracts.market import MarketState
 from stackfund.contracts.policy import PolicySet
 from stackfund.contracts.portfolio import PortfolioState
-from stackfund.l1_databook import load_databook_from_fixture, make_seed
+from stackfund.l1_databook import load_databook, load_databook_from_fixture, make_seed
 from stackfund.l2_scorecard import build_scorecard
 from stackfund.l3_crowd import run_scenario
 from stackfund.l4_portfolio import build_rebalance_plan
@@ -153,6 +153,20 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_fetch(args: argparse.Namespace) -> int:
+    db = load_databook(args.symbol, live=args.live, fixtures_dir=_fixtures_dir())
+    tag = (
+        "LIVE (TWSE price/volume + fixture fundamentals)"
+        if db.freshness == "live"
+        else "frozen fixture"
+    )
+    print(f"DataBook[{db.etf_symbol}] freshness={db.freshness} ({tag})")
+    print(f"  observed_at={db.observed_at}  book_hash={db.book_hash}")
+    for k, v in sorted(db.metrics.items()):
+        print(f"  {k}: {v}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="stackfund",
@@ -179,6 +193,13 @@ def main(argv: list[str] | None = None) -> int:
     p_verify.add_argument("--scenario", default="0056_cut")
     p_verify.add_argument("--seed", type=int, default=42)
     p_verify.set_defaults(func=cmd_verify)
+
+    p_fetch = sub.add_parser("fetch", help="build a DataBook (frozen, or --live from TWSE)")
+    p_fetch.add_argument("--symbol", default="0050")
+    p_fetch.add_argument(
+        "--live", action="store_true", help="overlay official TWSE daily price/volume"
+    )
+    p_fetch.set_defaults(func=cmd_fetch)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

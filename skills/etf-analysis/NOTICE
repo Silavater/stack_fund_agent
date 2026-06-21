@@ -1,0 +1,45 @@
+NOTICE — third-party attribution
+================================
+
+This skill's design and reference documents are adapted from:
+
+  AZNitro/tw-stock-agent
+  https://github.com/AZNitro/tw-stock-agent
+  MIT License — Copyright (c) 2026 Chen YuShen
+
+The upstream repository is documentation-first; its scripts/ (fetch_twse.py,
+fetch_yahoo.py, fetch_news.py, value_investing_analyzer.py) were placeholders
+that only built URLs or returned mock JSON. StackFund COMPLETES them with working
+data connectors:
+
+  src/stackfund/l1_databook/sources/twse.py   — TWSE OpenAPI STOCK_DAY_ALL
+  src/stackfund/l1_databook/sources/yahoo.py  — Yahoo v8 chart API (cross-check)
+
+Adaptations: ETF focus (0050 / 0056 / 00878), StackFund's Core-B firewall and
+four-tier disclaimer framing, and the strict "research desk — places no
+securities orders" posture.
+
+--------------------------------------------------------------------------------
+Upstream license (reproduced per MIT terms):
+
+MIT License
+
+Copyright (c) 2026 Chen YuShen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

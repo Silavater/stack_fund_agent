@@ -1,18 +1,41 @@
-# Data sources (priority order)
+# Data Sources (real connectors)
 
-1. **TWSE OpenAPI** (authoritative): price/volume, margin balance, P/E, P/B,
-   yield, announcements. https://openapi.twse.com.tw/
-2. **TPEX / MOPS**: OTC + financials/dividends. https://mops.twse.com.tw/
-3. **Yahoo Finance**: quotes, analyst targets, peers, news.
-4. **Web / News**: catalyst events.
-5. **Contrarian sentiment** (auxiliary layer only): overheating / panic / crowding.
+> Adapted from AZNitro/tw-stock-agent `references/data-sources.md` (MIT, see NOTICE),
+> updated to document StackFund's **completed** connectors.
 
-ETF-specific fields (discount/premium, tracking error, constituent overlap,
-ex-dividend date) are **always computed deterministically in Python** (L1), never
-inferred by the model.
+## Source priority
+1. **Official exchange data** (TWSE) — anchor of truth.
+2. **Company filings / disclosures** (MOPS / TPEX) — OTC + financials.
+3. **Yahoo Finance** — narrative / expectation cross-check.
+4. **Fresh news / web** — catalyst context, not truth by default.
+5. **Contrarian sentiment** — auxiliary, non-authoritative (L3 crowd side-rail).
 
-Freshness is tagged on every DataBook (`frozen` / `live` / `partial`). Missing
-data is marked `partial` — never fabricated.
+## Implemented connectors
 
-> MVP note: fixtures under `fixtures/etf_*.json` are frozen samples. Live
-> fetchers (TWSE price/volume + Yahoo quote) are the first connectors to add.
+### TWSE OpenAPI — `src/stackfund/l1_databook/sources/twse.py`
+- Endpoint: `https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`
+- Returns every listed security's daily OHLCV; filtered to the ETF by `Code`.
+- Fields used: `ClosingPrice`, `OpeningPrice`/`HighestPrice`/`LowestPrice`,
+  `TradeVolume`, `Change`, `Date` (ROC, e.g. `1150618` → `2026-06-18`).
+- **ETF caveat:** the TWSE valuation feed `BWIBBU_ALL` (P/E, dividend yield, P/B)
+  **excludes ETFs** (no `0050` row). So ETF **yield / NAV / tracking error** are
+  *not* available from the free TWSE feed — they are carried from the data book's
+  fundamentals source (frozen fixture today) and labelled accordingly. A dedicated
+  ETF-NAV / distribution connector is the next extension.
+
+### Yahoo Finance — `src/stackfund/l1_databook/sources/yahoo.py`
+- Endpoint: `https://query1.finance.yahoo.com/v8/finance/chart/<symbol>.TW`
+- Unauthenticated; returns a `meta` block (`regularMarketPrice`,
+  `chartPreviousClose`, `currency`). Used as a **price cross-check** on the TWSE close.
+
+### Mid-session fallback (from upstream)
+When live intraday is limited, use TWSE daily proxies and state the limitation:
+`fmtqik` (Highlights of Daily Trading) and `mi-stock20` (Top 20 by Volume), then
+Yahoo for narrative context.
+
+## Freshness & honesty rules
+- `freshness=live` means **price/volume** are live (TWSE); fundamentals may still
+  be frozen — say so.
+- `freshness=frozen` means the whole DataBook is from a fixture.
+- Never treat sentiment as truth. If a source is incomplete, mark it, don't invent.
+- Each `DataBook` is immutable and hashed (`book_hash`) for replay.

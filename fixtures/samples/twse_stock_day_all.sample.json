@@ -1,0 +1,41 @@
+[
+  {
+    "Date": "1150618",
+    "Code": "0050",
+    "Name": "元大台灣50",
+    "TradeVolume": "78557448",
+    "TradeValue": "8411642386",
+    "OpeningPrice": "107.00",
+    "HighestPrice": "107.45",
+    "LowestPrice": "106.65",
+    "ClosingPrice": "107.30",
+    "Change": "1.3000",
+    "Transaction": "85158"
+  },
+  {
+    "Date": "1150618",
+    "Code": "0056",
+    "Name": "元大高股息",
+    "TradeVolume": "33652479",
+    "TradeValue": "1772299362",
+    "OpeningPrice": "52.40",
+    "HighestPrice": "52.85",
+    "LowestPrice": "52.40",
+    "ClosingPrice": "52.80",
+    "Change": "0.8500",
+    "Transaction": "21723"
+  },
+  {
+    "Date": "1150618",
+    "Code": "00878",
+    "Name": "國泰永續高股息",
+    "TradeVolume": "37481091",
+    "TradeValue": "1259342934",
+    "OpeningPrice": "33.45",
+    "HighestPrice": "33.71",
+    "LowestPrice": "33.45",
+    "ClosingPrice": "33.67",
+    "Change": "0.4000",
+    "Transaction": "21268"
+  }
+]

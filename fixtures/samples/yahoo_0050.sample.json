@@ -1,0 +1,17 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "symbol": "0050.TW",
+          "currency": "TWD",
+          "regularMarketPrice": 107.3,
+          "chartPreviousClose": 101.95,
+          "regularMarketTime": 1781760602,
+          "exchangeName": "TAI"
+        }
+      }
+    ],
+    "error": null
+  }
+}
