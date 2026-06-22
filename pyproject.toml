@@ -38,8 +38,9 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
-# desk.py is an HTML/CSS template module — long string literals are inherent.
+# desk.py + the chat UI server embed HTML/CSS — long string literals are inherent.
 "src/stackfund/report/desk.py" = ["E501"]
+"ui/server.py" = ["E501"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
