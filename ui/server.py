@@ -44,6 +44,24 @@ TIERS = {
     "desk": {"name": "Desk", "amount": 999, "blurb": "Pro + 即時資料 + 優先排程"},
 }
 _EARNS: list[dict] = []  # in-memory record of paid sessions (demo)
+TEAM = os.environ.get("SF_TEAM", "").strip()  # optional team name → " · <team>" in the wordmark
+
+# Brand wordmark: a stacked-bars mark (stack + fund + growth) + "StackFund".
+# Mark colour follows --accent so it adapts to light/dark. Team name is optional.
+WORDMARK = (
+    '<span style="display:inline-flex;align-items:center;gap:9px;line-height:1">'
+    '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="color:var(--accent);flex:none">'
+    '<rect x="1" y="13" width="5" height="8" rx="1.3" fill="currentColor" opacity=".55"/>'
+    '<rect x="8.5" y="8" width="5" height="13" rx="1.3" fill="currentColor"/>'
+    '<rect x="16" y="3" width="5" height="18" rx="1.3" fill="currentColor" opacity=".8"/></svg>'
+    '<span style="font-weight:600;letter-spacing:-.01em;color:var(--tp)">StackFund</span>'
+    + (
+        f'<span style="color:var(--tt);font-weight:400;font-size:.62em"> · {TEAM}</span>'
+        if TEAM
+        else ""
+    )
+    + "</span>"
+)
 
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
 
@@ -164,6 +182,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _html(self, html: str):
+        html = html.replace("__WORDMARK__", WORDMARK)
         self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
     def do_GET(self):
@@ -227,8 +246,8 @@ body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,Bl
 button{{width:100%;margin-top:14px;font-size:15px;padding:11px;border-radius:11px;border:none;background:var(--accent);color:#fff;cursor:pointer}}
 button.ghost{{background:transparent;border:1px solid var(--bd);color:var(--tp)}}
 .note{{font-size:12px;color:var(--tt);margin-top:24px}}</style></head><body>
-<div class="wrap"><div class="h1">StackFund — 自主台股 ETF 研究台</div>
-<div class="sub">訂閱即解鎖會跑確定性引擎的 agent。研究/教育用途 · 全程不下任何證券委託單。</div>
+<div class="wrap"><div class="h1">__WORDMARK__</div>
+<div class="sub">自主台股 ETF 研究台 · 訂閱即解鎖會自己跑確定性引擎的 agent。研究/教育 · 全程不下任何證券委託單。</div>
 <div class="grid">
   <div class="card"><div class="name">Watch</div><div class="price">免費</div>
     <div class="blurb">公開摘要</div><button class="ghost" onclick="buy('watch')">免費進入</button></div>
@@ -256,7 +275,7 @@ body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,Bl
 .h{{font-size:21px;font-weight:600}}.m{{color:var(--ts);margin:8px 0 22px;font-size:14px}}
 a.btn{{display:inline-block;font-size:15px;padding:12px 22px;border-radius:12px;background:var(--accent);color:#fff;text-decoration:none}}
 .dis{{font-size:11px;color:var(--tt);margin-top:20px}}</style></head><body>
-<div class="box"><div class="tick">✓</div>
+<div class="box"><div style="margin-bottom:16px">__WORDMARK__</div><div class="tick">✓</div>
 <div class="h">已解鎖 Pro · NT$__AMT__</div>
 <div class="m">__MODE__ — 這筆會進 FinOps 帳本成為營收。</div>
 <a class="btn" href="/">進入研究台 →</a>
@@ -287,7 +306,7 @@ tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-
 .rsn{{text-decoration:none!important;font-size:11.5px;padding-bottom:8px!important}}
 .cap{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--tt);margin-top:6px}}
 </style></head><body><div class="wrap">
-<div class="top"><div class="h1">FinOps — 系統自己的帳本</div><a class="back" href="/">← 回對話台</a></div>
+<div class="top"><div class="h1">__WORDMARK__ <span style="font-weight:400;color:var(--ts);font-size:15px">· FinOps</span></div><a class="back" href="/">← 回對話台</a></div>
 <div class="sub">authoritative · 系統會自己賺、自己花、超支就拒付 · 群眾無權觸發支出</div>
 <div class="cards">
   <div class="m"><div class="l">營收 · 客戶付進</div><div class="v">NT$__REV__</div></div>
@@ -361,8 +380,8 @@ button{font-size:15px;padding:0 18px;border-radius:12px;border:none;background:v
 button:disabled{opacity:.5;cursor:default}
 .foot-note{text-align:center;font-size:11px;color:var(--tt);margin-top:7px}
 </style></head><body>
-<header><div><div class="t">StackFund — Taiwan ETF research desk</div>
-<div class="s">gpt-5.5 · deterministic engine · 不下任何證券委託單</div></div>
+<header><div><div class="t">__WORDMARK__</div>
+<div class="s">Taiwan ETF research desk · gpt-5.5 · 確定性引擎 · 不下任何證券委託單</div></div>
 <a class="pill" href="/finops" style="text-decoration:none">帳本 / FinOps ↗</a></header>
 <div id="log"><div class="row a"><div><div class="who">StackFund</div>
 <div class="bub">你好,我是 StackFund 自主台股 ETF 研究台。我會呼叫確定性引擎算出每個數字、再幫你解讀 —— 我不下任何證券委託單,也不給個別化投資建議。問我一檔 ETF 的研究或再平衡決策吧。</div></div></div></div>

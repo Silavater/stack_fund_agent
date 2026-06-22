@@ -71,6 +71,18 @@ def _esc(x: object) -> str:
     return html.escape(str(x))
 
 
+# Brand wordmark: stacked-bars mark (stack + fund + growth) + "StackFund". The
+# mark colour follows the desk accent (--info-tx) so it adapts to light/dark.
+_WORDMARK = (
+    '<span style="display:inline-flex;align-items:center;gap:9px;line-height:1">'
+    '<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="color:var(--info-tx);flex:none">'
+    '<rect x="1" y="13" width="5" height="8" rx="1.3" fill="currentColor" opacity=".55"/>'
+    '<rect x="8.5" y="8" width="5" height="13" rx="1.3" fill="currentColor"/>'
+    '<rect x="16" y="3" width="5" height="18" rx="1.3" fill="currentColor" opacity=".8"/></svg>'
+    '<span style="font-weight:600;letter-spacing:-.01em;color:var(--tp)">StackFund</span></span>'
+)
+
+
 def _etf_card(e: dict) -> str:
     sym = _esc(e["symbol"])
     if "delta_pp" in e:  # REBALANCE
@@ -135,8 +147,8 @@ def render_desk_html(result: dict) -> str:
     cards = "".join(_etf_card(e) for e in etfs)
     body = (
         '<div class="wrap"><div class="top"><div>'
-        '<div class="h1">StackFund — Taiwan ETF research desk</div>'
-        f'<div class="meta">deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
+        f'<div class="h1">{_WORDMARK}</div>'
+        f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
         f"seed {_esc(m.get('seed', ''))} · formula {_esc(m.get('formula_version', ''))} · "
         f"as of {_esc(m.get('as_of', ''))}</div></div>"
         '<span class="pill">研究/教育 · 不下任何證券委託單</span></div>'
