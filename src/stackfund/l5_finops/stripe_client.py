@@ -87,3 +87,42 @@ def create_payment(
         confirm=True,
     )
     return {"id": pi.id, "status": pi.status, "amount": pi.amount, "currency": pi.currency}
+
+
+def create_checkout_session(
+    tier: str, amount: float, currency: str, success_url: str, cancel_url: str
+) -> dict:
+    """Create a TEST-mode Stripe Checkout Session (hosted page). Returns {id, url}.
+
+    Uses inline ``price_data`` so no dashboard Price object is needed. The
+    ``_client()`` guard means a live key can never create a real session.
+    """
+    stripe = _client()
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[
+            {
+                "quantity": 1,
+                "price_data": {
+                    "currency": currency.lower(),
+                    "unit_amount": to_minor_units(amount, currency),
+                    "product_data": {"name": f"StackFund {tier} (test mode)"},
+                },
+            }
+        ],
+        success_url=success_url,
+        cancel_url=cancel_url,
+    )
+    return {"id": session.id, "url": session.url}
+
+
+def retrieve_checkout_session(session_id: str) -> dict:
+    """Server-side verify a Checkout Session. Returns {id, paid, amount, currency}."""
+    stripe = _client()
+    s = stripe.checkout.Session.retrieve(session_id)
+    return {
+        "id": s["id"],
+        "paid": s["payment_status"] == "paid",
+        "amount": (s["amount_total"] or 0) / 100.0,
+        "currency": (s["currency"] or "").upper(),
+    }
