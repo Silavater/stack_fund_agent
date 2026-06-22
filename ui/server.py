@@ -170,6 +170,40 @@ def finops_html() -> str:
     )
 
 
+def journal_html() -> str:
+    """Render the standing research journal (the agent's long-term plan + memory)."""
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", ".hermes-data", "research-journal.jsonl"
+    )
+    entries = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    entries.append(json.loads(line))
+    except FileNotFoundError:
+        pass
+    rows = []
+    for e in reversed(entries):  # newest first
+        acts = ""
+        for a in e.get("actions", []):
+            if a.get("action") == "REBALANCE":
+                acts += f'<span class="jbadge act">{a["symbol"]} REBALANCE {a.get("delta_pp", 0):+.2f}pp</span>'
+            else:
+                acts += f'<span class="jbadge hold">{a["symbol"]} NO_ACTION</span>'
+        rows.append(
+            f'<div class="je"><div class="jd">{e.get("date", "")}</div>'
+            f'<div class="jb"><div class="ja">{acts}</div>'
+            f'<div class="jmeta">情境 {e.get("scenario", "")} · 毛利 NT${e.get("margin", 0):.0f}</div></div></div>'
+        )
+    body = "".join(rows) or (
+        '<p style="color:var(--ts);padding:14px 0">尚無紀錄 — 執行 '
+        "<code>python -m stackfund journal</code> 產生第一筆。</p>"
+    )
+    return JOURNAL_HTML.replace("__ROWS__", body).replace("__N__", str(len(entries)))
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_a):  # quiet
         pass
@@ -195,6 +229,8 @@ class Handler(BaseHTTPRequestHandler):
             self._html(success_html(parse_qs(p.query)))
         elif p.path == "/finops":
             self._html(finops_html())
+        elif p.path == "/journal":
+            self._html(journal_html())
         elif p.path == "/healthz":
             self._send(200, b"ok", "text/plain")
         else:
@@ -342,6 +378,30 @@ tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-
 <tbody>__ROWS__</tbody></table></div>
 </div></body></html>"""
 
+JOURNAL_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>StackFund — 研究日誌</title>
+<style>{_CSS}
+body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}}
+.wrap{{max-width:760px;margin:0 auto;padding:24px 20px 44px}}
+.top{{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px}}
+.h1{{font-size:20px;font-weight:600}} a.back{{font-size:13px;color:var(--accent);text-decoration:none}}
+.plan{{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:13px 15px;margin:12px 0 6px;font-size:13px;color:var(--ts)}}
+.plan b{{color:var(--tp);font-weight:600}}
+.je{{display:flex;gap:14px;padding:13px 2px;border-top:1px solid var(--bd)}}
+.jd{{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ts);min-width:84px;padding-top:3px}}
+.jb{{flex:1}} .ja{{display:flex;gap:6px;flex-wrap:wrap}}
+.jbadge{{font-size:12px;font-weight:500;padding:3px 9px;border-radius:8px}}
+.jbadge.act{{background:rgba(22,84,143,.13);color:var(--accent)}}
+.jbadge.hold{{background:var(--bg);color:var(--ts);border:1px solid var(--bd)}}
+.jmeta{{font-size:12px;color:var(--tt);margin-top:6px}}
+.cap{{font-size:12px;color:var(--tt);margin-top:16px}}
+</style></head><body><div class="wrap">
+<div class="top"><div class="h1">__WORDMARK__ <span style="font-weight:400;color:var(--ts);font-size:15px">· 研究日誌</span></div><a class="back" href="/">← 回對話台</a></div>
+<div class="plan"><b>長期規劃</b> — 這個研究台有一個<b>標準週排程</b>:每週自動跑一次 0050 / 0056 / 00878 研究,把決策寫進日誌(它的記憶)。目前 <b>__N__</b> 筆。排程方式見 <code>docker/setup-cron.sh</code>(Hermes cron)。</div>
+__ROWS__
+<div class="cap">每筆都是確定性引擎的決策(非 LLM)· 沒變化就 NO_ACTION(紀律)· agent 不是被問才動,是自己持續經營。</div>
+</div></body></html>"""
+
 INDEX_HTML = (
     """<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -382,7 +442,7 @@ button:disabled{opacity:.5;cursor:default}
 </style></head><body>
 <header><div><div class="t">__WORDMARK__</div>
 <div class="s">Taiwan ETF research desk · gpt-5.5 · 確定性引擎 · 不下任何證券委託單</div></div>
-<a class="pill" href="/finops" style="text-decoration:none">帳本 / FinOps ↗</a></header>
+<div style="display:flex;gap:8px"><a class="pill" href="/finops" style="text-decoration:none">帳本</a><a class="pill" href="/journal" style="text-decoration:none">日誌 ↗</a></div></header>
 <div id="log"><div class="row a"><div><div class="who">StackFund</div>
 <div class="bub">你好,我是 StackFund 自主台股 ETF 研究台。我會呼叫確定性引擎算出每個數字、再幫你解讀 —— 我不下任何證券委託單,也不給個別化投資建議。問我一檔 ETF 的研究或再平衡決策吧。</div></div></div></div>
 <div class="chips" id="chips"></div>

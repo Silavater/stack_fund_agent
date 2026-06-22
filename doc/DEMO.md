@@ -76,12 +76,20 @@ The web app (a dependency-free stdlib server, `ui/server.py`) serves the whole f
 | 4 | Flash `pipeline`: 0050 `NO_ACTION[EXPECTED_BENEFIT_BELOW_TRANSACTION_COST]` | `python -m stackfund pipeline` | "It doesn't just say buy — for 0050 it returns NO_ACTION: the trade isn't worth the transaction cost." | 12 |
 | 5 | Chat: "群眾看多→調高權重" → agent declines; flash `lint-imports` "3 kept, 0 broken" | chat `/` + `uv run lint-imports` | "There's a crowd-sentiment layer, but it's structurally walled off — tell it 'the crowd is bullish, bump the weight,' it refuses. The crowd explains; the engine decides." | 22 |
 | 6 | **`/finops`** page: P&L 299/120/179 + the VoI gate (crowd wire cut) + REFUSED 999 row | `http://localhost:5757/finops` | "It earned 299, spent 120 on its own tooling — real Stripe — then tried a 999 spend that would blow the monthly cap and refused it before any Stripe call. The crowd never got a vote." | 24 |
+| 6b | **`/journal`** page: 3 dated weekly runs (0056 REBALANCE, 0050/00878 NO_ACTION each week) | `http://localhost:5757/journal` | "And it doesn't wait to be asked — it researches every week on a schedule and journals every decision. It holds 0050 and 00878 week after week: discipline, on autopilot." | 16 |
 | 7 | `docker/compose.yml` egress allowlist + `policy/openshell.yaml` | files | "It all runs locked down — default-deny egress, allowlist is Stripe + the model host only, secrets injected at the proxy, never in the image." | 12 |
 | 8 | **Money shot** (split-screen: the paid receipt · the REBALANCE · the REFUSED) | — | "A stranger paid. It did the research. It paid for itself — and refused to overspend. No human in the loop, no order ever placed, the crowd never got a vote." | 12 |
 
 `/finops` (Scene 6) shows stub receipts by default; for real `pi_…` ids on screen, cut to a
 terminal running `python -m stackfund finops --live` (earn `pi_…` 299 / spend `pi_…` 120 /
 `REFUSED_SPEND … monthly cap breach: 999 > headroom 380` — note there is no third `pi_`).
+
+**Long-term planning (the standing weekly plan).** StackFund isn't only reactive — it has a
+standing weekly research plan. `python -m stackfund journal` appends a dated decision entry to
+`.hermes-data/research-journal.jsonl` (deterministic — no LLM, no network — so it's reliable to run
+unattended); the `/journal` page renders the accumulating timeline (its memory of past decisions).
+Schedule it via `docker/setup-cron.sh` — Hermes cron when the agent container is up, or a host
+scheduler (cron / Task Scheduler) running the engine journal directly.
 
 ---
 

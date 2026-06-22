@@ -215,6 +215,40 @@ def cmd_desk(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_journal(args: argparse.Namespace) -> int:
+    """Append one dated research entry to the standing research journal.
+
+    The "long-term plan": run on a schedule (Hermes cron / Task Scheduler) so the
+    desk accumulates a memory of its own decisions over time. Deterministic — no
+    LLM, no network — so it is reliable to schedule.
+    """
+    import datetime
+
+    symbols = args.symbols or ["0050", "0056", "00878"]
+    result = build_pipeline_result(symbols, args.scenario, args.seed)
+    actions = []
+    for e in result["etfs"]:
+        a = {"symbol": e["symbol"], "action": e["action"]}
+        if "delta_pp" in e:
+            a["delta_pp"] = e["delta_pp"]
+        else:
+            a["reason"] = (e.get("reason_codes") or [""])[0]
+        actions.append(a)
+    entry = {
+        "date": args.date or datetime.date.today().isoformat(),
+        "scenario": args.scenario,
+        "seed": args.seed,
+        "actions": actions,
+        "margin": result["finops"]["gross_margin"],
+    }
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(f"journal += {entry['date']} (scenario={args.scenario}) -> {out}")
+    return 0
+
+
 def cmd_crowd(args: argparse.Namespace) -> int:
     book = load_databook_from_fixture(_fixtures_dir() / f"etf_{args.symbol}.json")
     seed = make_seed(book, market_scenario_label=args.scenario, rng_seed=args.seed)
@@ -331,6 +365,18 @@ def main(argv: list[str] | None = None) -> int:
     p_desk.add_argument("--seed", type=int, default=42)
     p_desk.add_argument("--out", default="dist/stackfund-desk.html", help="output HTML path")
     p_desk.set_defaults(func=cmd_desk)
+
+    p_journal = sub.add_parser(
+        "journal", help="append a dated research entry to the standing journal (the long-term plan)"
+    )
+    p_journal.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
+    p_journal.add_argument("--scenario", default="升息")
+    p_journal.add_argument("--seed", type=int, default=42)
+    p_journal.add_argument("--date", default="", help="ISO date (default: today)")
+    p_journal.add_argument(
+        "--out", default=".hermes-data/research-journal.jsonl", help="journal JSONL path"
+    )
+    p_journal.set_defaults(func=cmd_journal)
 
     p_crowd = sub.add_parser("crowd", help="run only the L3 crowd side-rail")
     p_crowd.add_argument("--symbol", default="0056")
