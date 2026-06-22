@@ -31,3 +31,6 @@ docker/agent.env
 Thumbs.db
 .idea/
 .vscode/
+
+# Local preview config (holds a machine-specific absolute path)
+.claude/launch.json

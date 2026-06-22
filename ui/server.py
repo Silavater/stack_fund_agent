@@ -63,6 +63,24 @@ WORDMARK = (
     + "</span>"
 )
 
+
+def _nav(active: str = "") -> str:
+    items = (
+        ("/pricing", "訂閱", "pricing"),
+        ("/", "對話", "chat"),
+        ("/finops", "帳本", "finops"),
+        ("/journal", "日誌", "journal"),
+    )
+    links = "".join(
+        f'<a class="navlink{" on" if k == active else ""}" href="{h}">{label}</a>'
+        for h, label, k in items
+    )
+    return (
+        '<nav class="nav"><a class="navbrand" href="/pricing">__WORDMARK__</a>'
+        f'<div class="navlinks">{links}</div></nav>'
+    )
+
+
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
 
 
@@ -215,22 +233,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _html(self, html: str):
-        html = html.replace("__WORDMARK__", WORDMARK)
+    def _html(self, html: str, active: str = ""):
+        html = html.replace("__NAV__", _nav(active)).replace("__WORDMARK__", WORDMARK)
         self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
 
     def do_GET(self):
         p = urlparse(self.path)
         if p.path in ("/", "/index.html"):
-            self._html(INDEX_HTML)
+            self._html(INDEX_HTML, "chat")
         elif p.path == "/pricing":
-            self._html(PRICING_HTML)
+            self._html(PRICING_HTML, "pricing")
         elif p.path == "/success":
             self._html(success_html(parse_qs(p.query)))
         elif p.path == "/finops":
-            self._html(finops_html())
+            self._html(finops_html(), "finops")
         elif p.path == "/journal":
-            self._html(journal_html())
+            self._html(journal_html(), "journal")
         elif p.path == "/healthz":
             self._send(200, b"ok", "text/plain")
         else:
@@ -260,11 +278,21 @@ class Handler(BaseHTTPRequestHandler):
 
 
 _CSS = """*{box-sizing:border-box}
-:root{--bg:#f4f4f2;--card:#fff;--tp:#1c1c1a;--ts:#6e6e68;--tt:#9b9b93;--bd:rgba(0,0,0,.10);
+:root{--bg:#f4f4f2;--card:#fff;--tp:#1c1c1a;--ts:#6e6e68;--tt:#9b9b93;--bd:rgba(0,0,0,.10);--bd2:rgba(0,0,0,.05);
   --u-bg:#16548f;--u-tx:#fff;--a-bg:#fff;--ban-bg:#fbeede;--ban-tx:#8a5210;--accent:#16548f;--ok:#0f6e56}
 @media (prefers-color-scheme:dark){:root{--bg:#19191a;--card:#242423;--tp:#ededeb;--ts:#a6a6a2;
-  --tt:#74746d;--bd:rgba(255,255,255,.12);--u-bg:#2f6fb0;--a-bg:#242423;--ban-bg:#3d2a0a;
-  --ban-tx:#f1ca88;--accent:#88b9ec;--ok:#62cba6}}"""
+  --tt:#74746d;--bd:rgba(255,255,255,.12);--bd2:rgba(255,255,255,.06);--u-bg:#2f6fb0;--a-bg:#242423;
+  --ban-bg:#3d2a0a;--ban-tx:#f1ca88;--accent:#88b9ec;--ok:#62cba6}}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;max-width:960px;margin:0 auto;padding:12px 20px;border-bottom:1px solid var(--bd)}
+.nav a{text-decoration:none}
+.navlinks{display:flex;gap:2px;align-items:center}
+.navlink{font-size:13px;color:var(--ts);padding:6px 11px;border-radius:8px;transition:background .15s,color .15s}
+.navlink:hover{background:var(--bd2);color:var(--tp)}
+.navlink.on{color:var(--tp);font-weight:500;background:var(--bd2)}
+a,button{transition:background .15s,border-color .15s,opacity .15s,transform .1s}
+button:hover{opacity:.92}button:active{transform:scale(.985)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:520px){.nav{padding:10px 14px}.navlink{padding:6px 8px}}"""
 
 PRICING_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>StackFund — 訂閱</title>
@@ -281,8 +309,8 @@ body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,Bl
 .blurb{{font-size:13px;color:var(--ts);min-height:38px}}
 button{{width:100%;margin-top:14px;font-size:15px;padding:11px;border-radius:11px;border:none;background:var(--accent);color:#fff;cursor:pointer}}
 button.ghost{{background:transparent;border:1px solid var(--bd);color:var(--tp)}}
-.note{{font-size:12px;color:var(--tt);margin-top:24px}}</style></head><body>
-<div class="wrap"><div class="h1">__WORDMARK__</div>
+.note{{font-size:12px;color:var(--tt);margin-top:24px}}</style></head><body>__NAV__
+<div class="wrap"><div class="h1">選擇方案</div>
 <div class="sub">自主台股 ETF 研究台 · 訂閱即解鎖會自己跑確定性引擎的 agent。研究/教育 · 全程不下任何證券委託單。</div>
 <div class="grid">
   <div class="card"><div class="name">Watch</div><div class="price">免費</div>
@@ -341,8 +369,8 @@ th{{text-align:left;color:var(--tt);font-weight:400;padding:4px 0}} td{{padding:
 tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-through}}
 .rsn{{text-decoration:none!important;font-size:11.5px;padding-bottom:8px!important}}
 .cap{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--tt);margin-top:6px}}
-</style></head><body><div class="wrap">
-<div class="top"><div class="h1">__WORDMARK__ <span style="font-weight:400;color:var(--ts);font-size:15px">· FinOps</span></div><a class="back" href="/">← 回對話台</a></div>
+</style></head><body>__NAV__<div class="wrap">
+<div class="top"><div class="h1">FinOps · 系統自己的帳本</div></div>
 <div class="sub">authoritative · 系統會自己賺、自己花、超支就拒付 · 群眾無權觸發支出</div>
 <div class="cards">
   <div class="m"><div class="l">營收 · 客戶付進</div><div class="v">NT$__REV__</div></div>
@@ -395,8 +423,8 @@ body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:
 .jbadge.hold{{background:var(--bg);color:var(--ts);border:1px solid var(--bd)}}
 .jmeta{{font-size:12px;color:var(--tt);margin-top:6px}}
 .cap{{font-size:12px;color:var(--tt);margin-top:16px}}
-</style></head><body><div class="wrap">
-<div class="top"><div class="h1">__WORDMARK__ <span style="font-weight:400;color:var(--ts);font-size:15px">· 研究日誌</span></div><a class="back" href="/">← 回對話台</a></div>
+</style></head><body>__NAV__<div class="wrap">
+<div class="top"><div class="h1">研究日誌</div></div>
 <div class="plan"><b>長期規劃</b> — 這個研究台有一個<b>標準週排程</b>:每週自動跑一次 0050 / 0056 / 00878 研究,把決策寫進日誌(它的記憶)。目前 <b>__N__</b> 筆。排程方式見 <code>docker/setup-cron.sh</code>(Hermes cron)。</div>
 __ROWS__
 <div class="cap">每筆都是確定性引擎的決策(非 LLM)· 沒變化就 NO_ACTION(紀律)· agent 不是被問才動,是自己持續經營。</div>
@@ -439,10 +467,7 @@ input:focus{outline:none;border-color:var(--accent)}
 button{font-size:15px;padding:0 18px;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}
 .foot-note{text-align:center;font-size:11px;color:var(--tt);margin-top:7px}
-</style></head><body>
-<header><div><div class="t">__WORDMARK__</div>
-<div class="s">Taiwan ETF research desk · gpt-5.5 · 確定性引擎 · 不下任何證券委託單</div></div>
-<div style="display:flex;gap:8px"><a class="pill" href="/finops" style="text-decoration:none">帳本</a><a class="pill" href="/journal" style="text-decoration:none">日誌 ↗</a></div></header>
+</style></head><body>__NAV__
 <div id="log"><div class="row a"><div><div class="who">StackFund</div>
 <div class="bub">你好,我是 StackFund 自主台股 ETF 研究台。我會呼叫確定性引擎算出每個數字、再幫你解讀 —— 我不下任何證券委託單,也不給個別化投資建議。問我一檔 ETF 的研究或再平衡決策吧。</div></div></div></div>
 <div class="chips" id="chips"></div>
