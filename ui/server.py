@@ -115,6 +115,43 @@ def _success(amt: int, mode: str) -> str:
     return SUCCESS_HTML.replace("__AMT__", str(amt)).replace("__MODE__", mode)
 
 
+def _finops_rows():
+    """Build the earn/spend/refused receipts + P&L from the real L5 functions."""
+    from stackfund.l5_finops import attempt_spend, operational_pnl, record_earn
+
+    rcs = [
+        record_earn("earn_001", 299.0),
+        attempt_spend("spend_001", 120.0, 500.0),  # succeeded — under cap
+        attempt_spend("spend_002", 999.0, 380.0),  # refused — over remaining headroom
+    ]
+    pnl = operational_pnl("2026-06", rcs)
+    out = []
+    for r in rcs:
+        refused = r.type == "refused_spend"
+        cls = "ref" if refused else "ok"
+        idc = "— no Stripe call" if refused else r.receipt_id
+        out.append(
+            f'<tr class="{cls}"><td>{r.type}</td><td>{r.status}</td>'
+            f'<td class="r">NT${r.amount:.0f}</td><td class="r">{idc}</td></tr>'
+        )
+        if refused and r.reason:
+            out.append(f'<tr class="ref"><td colspan="4" class="rsn">↳ {r.reason}</td></tr>')
+    return "".join(out), pnl
+
+
+def finops_html() -> str:
+    try:
+        rows, pnl = _finops_rows()
+    except Exception as exc:  # noqa: BLE001
+        return f"<!DOCTYPE html><meta charset='utf-8'><p style='font-family:sans-serif;padding:2rem'>FinOps unavailable: {exc}</p>"
+    return (
+        FINOPS_HTML.replace("__ROWS__", rows)
+        .replace("__REV__", f"{pnl.revenue:.0f}")
+        .replace("__COST__", f"{pnl.cost:.0f}")
+        .replace("__MARGIN__", f"{pnl.gross_margin:.0f}")
+    )
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_a):  # quiet
         pass
@@ -137,6 +174,8 @@ class Handler(BaseHTTPRequestHandler):
             self._html(PRICING_HTML)
         elif p.path == "/success":
             self._html(success_html(parse_qs(p.query)))
+        elif p.path == "/finops":
+            self._html(finops_html())
         elif p.path == "/healthz":
             self._send(200, b"ok", "text/plain")
         else:
@@ -229,6 +268,61 @@ display:flex;align-items:center;justify-content:center;height:100vh}}
 a{{color:var(--accent)}}</style></head><body>
 <div style="text-align:center"><p>找不到已完成的付款。</p><a href="/pricing">← 回訂閱頁</a></div></body></html>"""
 
+FINOPS_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>StackFund — FinOps</title>
+<style>{_CSS}
+body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}}
+.wrap{{max-width:780px;margin:0 auto;padding:24px 20px 44px}}
+.top{{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px}}
+.h1{{font-size:20px;font-weight:600}} a.back{{font-size:13px;color:var(--accent);text-decoration:none}}
+.sub{{color:var(--ts);font-size:13px;margin:4px 0 18px}}
+.cards{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}}
+.m{{background:var(--card);border:1px solid var(--bd);border-radius:11px;padding:12px 14px}}
+.m .l{{font-size:12px;color:var(--ts)}} .m .v{{font-size:22px;font-weight:600;margin-top:2px}} .m .v.ok{{color:var(--ok)}}
+.card{{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;margin-bottom:13px}}
+.ct{{font-size:13px;font-weight:600;color:var(--ts);margin-bottom:10px}}
+table{{width:100%;border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}}
+th{{text-align:left;color:var(--tt);font-weight:400;padding:4px 0}} td{{padding:5px 0}} .r{{text-align:right}}
+tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-through}}
+.rsn{{text-decoration:none!important;font-size:11.5px;padding-bottom:8px!important}}
+.cap{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--tt);margin-top:6px}}
+</style></head><body><div class="wrap">
+<div class="top"><div class="h1">FinOps — 系統自己的帳本</div><a class="back" href="/">← 回對話台</a></div>
+<div class="sub">authoritative · 系統會自己賺、自己花、超支就拒付 · 群眾無權觸發支出</div>
+<div class="cards">
+  <div class="m"><div class="l">營收 · 客戶付進</div><div class="v">NT$__REV__</div></div>
+  <div class="m"><div class="l">成本 · 系統付出</div><div class="v">NT$__COST__</div></div>
+  <div class="m"><div class="l">營運毛利</div><div class="v ok">NT$__MARGIN__</div></div>
+</div>
+<div class="card"><div class="ct">花錢決策閘門(VoI gate)· 群眾被剪在門外</div>
+<svg viewBox="0 0 620 184" width="100%" role="img" aria-label="Spend gate: materiality and cap headroom AND into a refused verdict (999 over headroom 380, no Stripe call); the crowd signal is a wire cut before the gate.">
+  <rect x="6" y="48" width="186" height="38" rx="9" style="fill:rgba(15,110,86,.13)"/>
+  <text x="18" y="65" style="fill:var(--ok);font-size:13px;font-weight:500">materiality 0.42</text>
+  <text x="18" y="79" style="fill:var(--ok);font-size:11px">≥ threshold 0.30</text>
+  <rect x="6" y="100" width="186" height="38" rx="9" style="fill:rgba(15,110,86,.13)"/>
+  <text x="18" y="117" style="fill:var(--ok);font-size:13px;font-weight:500">cap headroom NT$380</text>
+  <text x="18" y="131" style="fill:var(--ok);font-size:11px">&gt; 0</text>
+  <line x1="192" y1="67" x2="288" y2="84" style="stroke:var(--bd);stroke-width:2"/>
+  <line x1="192" y1="119" x2="288" y2="108" style="stroke:var(--bd);stroke-width:2"/>
+  <path d="M288 66 L326 66 A32 32 0 0 1 326 128 L288 128 Z" style="fill:var(--card);stroke:var(--ts);stroke-width:1.5"/>
+  <text x="298" y="101" style="fill:var(--tp);font-size:13px;font-weight:500">AND</text>
+  <line x1="308" y1="4" x2="308" y2="34" style="stroke:var(--tt);stroke-width:2;stroke-dasharray:4 4"/>
+  <line x1="299" y1="38" x2="317" y2="56" style="stroke:#A32D2D;stroke-width:2.5"/>
+  <line x1="317" y1="38" x2="299" y2="56" style="stroke:#A32D2D;stroke-width:2.5"/>
+  <text x="328" y="15" style="fill:var(--tt);font-size:12px">crowd / FACE signal</text>
+  <text x="328" y="52" style="fill:#A32D2D;font-size:11px;font-weight:500">not an input · firewalled</text>
+  <line x1="358" y1="97" x2="422" y2="97" style="stroke:var(--bd);stroke-width:2"/>
+  <rect x="422" y="66" width="192" height="62" rx="10" style="fill:var(--ban-bg)"/>
+  <text x="436" y="88" style="fill:var(--ban-tx);font-size:14px;font-weight:500">REFUSED</text>
+  <text x="436" y="105" style="fill:var(--ban-tx);font-size:11px">999 &gt; headroom 380</text>
+  <text x="436" y="121" style="fill:var(--ban-tx);font-size:11px;font-weight:500">no Stripe call · 0 moved</text>
+</svg>
+<div class="cap">import-linter · “L5 spend must not be triggered by the crowd side-rail” · machine-enforced</div></div>
+<div class="card"><div class="ct">收據明細 · Stripe 測試模式</div>
+<table><thead><tr><th>type</th><th>status</th><th class="r">amount</th><th class="r">receipt id</th></tr></thead>
+<tbody>__ROWS__</tbody></table></div>
+</div></body></html>"""
+
 INDEX_HTML = (
     """<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -269,7 +363,7 @@ button:disabled{opacity:.5;cursor:default}
 </style></head><body>
 <header><div><div class="t">StackFund — Taiwan ETF research desk</div>
 <div class="s">gpt-5.5 · deterministic engine · 不下任何證券委託單</div></div>
-<span class="pill">Pro · research / education only</span></header>
+<a class="pill" href="/finops" style="text-decoration:none">帳本 / FinOps ↗</a></header>
 <div id="log"><div class="row a"><div><div class="who">StackFund</div>
 <div class="bub">你好,我是 StackFund 自主台股 ETF 研究台。我會呼叫確定性引擎算出每個數字、再幫你解讀 —— 我不下任何證券委託單,也不給個別化投資建議。問我一檔 ETF 的研究或再平衡決策吧。</div></div></div></div>
 <div class="chips" id="chips"></div>

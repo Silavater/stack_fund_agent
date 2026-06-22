@@ -58,5 +58,8 @@ if ! docker ps --format '{{.Names}}' | grep -qx "${CONTAINER}"; then
   done
 fi
 
-echo "agent container: ${CONTAINER}  ·  open http://localhost:${PORT}"
-SF_AGENT_CONTAINER="${CONTAINER}" SF_UI_PORT="${PORT}" python "${ROOT}/ui/server.py"
+echo "agent container: ${CONTAINER}  ·  open http://localhost:${PORT}/pricing"
+# `uv run --extra stripe` so the server can import stackfund + the Stripe SDK
+# (real test-mode Checkout). Without uv/stripe it still runs, with a stub checkout.
+SF_AGENT_CONTAINER="${CONTAINER}" SF_UI_PORT="${PORT}" \
+  uv run --extra stripe python "${ROOT}/ui/server.py"
