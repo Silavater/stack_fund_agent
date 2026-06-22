@@ -121,7 +121,7 @@ def checkout(tier: str, base: str) -> dict:
             t["name"],
             float(t["amount"]),
             "twd",
-            success_url=f"{base}/success?session_id={{CHECKOUT_SESSION_ID}}",
+            success_url=f"{base}/success?session_id={{CHECKOUT_SESSION_ID}}&tier={tier}",
             cancel_url=f"{base}/pricing",
         )
         return {"url": s["url"]}
@@ -133,22 +133,27 @@ def success_html(qs: dict) -> str:
     """Server-side verify a returned Checkout session, record the earn, render unlock."""
     session_id = (qs.get("session_id") or [None])[0]
     tier = (qs.get("tier") or ["pro"])[0]
+    tier_name = TIERS.get(tier, {}).get("name", "Pro")
     amt = TIERS.get(tier, {}).get("amount", 299)
     if session_id and stripe_client is not None:
         try:
             r = stripe_client.retrieve_checkout_session(session_id)
             if r["paid"]:
                 _EARNS.append({"amount": r["amount"], "id": r["id"]})
-                return _success(int(r["amount"]), "Stripe 測試模式 · 已付款")
+                return _success(int(r["amount"]), "Stripe 測試模式 · 已付款", tier_name)
         except Exception:  # noqa: BLE001
             pass
     if (qs.get("stub") or [None])[0]:
-        return _success(int(amt), "stub(無 Stripe key)· 已解鎖")
+        return _success(int(amt), "stub(無 Stripe key)· 已解鎖", tier_name)
     return FAIL_HTML
 
 
-def _success(amt: int, mode: str) -> str:
-    return SUCCESS_HTML.replace("__AMT__", str(amt)).replace("__MODE__", mode)
+def _success(amt: int, mode: str, tier_name: str = "Pro") -> str:
+    return (
+        SUCCESS_HTML.replace("__TIER__", tier_name)
+        .replace("__AMT__", str(amt))
+        .replace("__MODE__", mode)
+    )
 
 
 def _finops_rows():
@@ -175,6 +180,65 @@ def _finops_rows():
     return "".join(out), pnl
 
 
+def _pnl_chart_svg(rev: float, cost: float, margin: float) -> str:
+    """Horizontal P&L bars (revenue / cost / margin), scaled to the largest value."""
+    mx = max(rev, cost, margin, 1.0)
+    x0, barw, w_total = 64, 372, 560
+    rows = (
+        ("營收", rev, "var(--accent)"),
+        ("成本", cost, "var(--ban-tx)"),
+        ("毛利", margin, "var(--ok)"),
+    )
+    parts = [
+        f'<svg viewBox="0 0 {w_total} 116" width="100%" role="img" '
+        f'aria-label="營收、成本、毛利長條圖 — 營收 {rev:.0f}、成本 {cost:.0f}、毛利 {margin:.0f}">'
+    ]
+    y = 12
+    for label, val, color in rows:
+        w = max(
+            0, int(barw * max(val, 0.0) / mx)
+        )  # clamp: negative margin → 0-width, never a negative rect
+        parts.append(
+            f'<text x="0" y="{y + 16}" style="fill:var(--ts);font-size:12px">{label}</text>'
+        )
+        parts.append(
+            f'<rect x="{x0}" y="{y}" width="{barw}" height="24" rx="6" style="fill:var(--bd)"/>'
+        )
+        parts.append(
+            f'<rect x="{x0}" y="{y}" width="{w}" height="24" rx="6" style="fill:{color}"/>'
+        )
+        parts.append(
+            f'<text x="{x0 + barw + 8}" y="{y + 16}" '
+            f'style="fill:var(--tp);font-size:12px;font-weight:600">NT${val:.0f}</text>'
+        )
+        y += 34
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _margin_bars_svg(margins: list[float]) -> str:
+    """A tiny per-week margin bar chart (chronological, oldest → newest)."""
+    if not margins:
+        return ""
+    mx = max(margins + [1.0])
+    n = len(margins)
+    w_total, h_total, gap = 300, 52, 7
+    bw = (w_total - gap * (n - 1)) / n
+    bars = []
+    for i, v in enumerate(margins):
+        h = max(4, int((h_total - 8) * max(v, 0.0) / mx))
+        x = i * (bw + gap)
+        # Solid fill (no opacity ramp) — equal weekly margins must read as flat, not rising.
+        bars.append(
+            f'<rect x="{x:.1f}" y="{h_total - h}" width="{bw:.1f}" height="{h}" rx="3" '
+            f'style="fill:var(--accent)"/>'
+        )
+    return (
+        f'<svg viewBox="0 0 {w_total} {h_total}" width="{w_total}" style="max-width:100%" role="img" '
+        f'aria-label="每週毛利,共 {n} 週">{"".join(bars)}</svg>'
+    )
+
+
 def finops_html() -> str:
     try:
         rows, pnl = _finops_rows()
@@ -185,6 +249,7 @@ def finops_html() -> str:
         .replace("__REV__", f"{pnl.revenue:.0f}")
         .replace("__COST__", f"{pnl.cost:.0f}")
         .replace("__MARGIN__", f"{pnl.gross_margin:.0f}")
+        .replace("__PNLCHART__", _pnl_chart_svg(pnl.revenue, pnl.cost, pnl.gross_margin))
     )
 
 
@@ -219,7 +284,19 @@ def journal_html() -> str:
         '<p style="color:var(--ts);padding:14px 0">尚無紀錄 — 執行 '
         "<code>python -m stackfund journal</code> 產生第一筆。</p>"
     )
-    return JOURNAL_HTML.replace("__ROWS__", body).replace("__N__", str(len(entries)))
+    chart = _margin_bars_svg([float(e.get("margin", 0)) for e in entries])
+    chart_block = (
+        '<div class="plan" style="margin:10px 0 4px">'
+        '<div style="font-size:12px;color:var(--ts);margin-bottom:7px">每週毛利(每筆 = 一週)</div>'
+        f"{chart}</div>"
+        if chart
+        else ""
+    )
+    return (
+        JOURNAL_HTML.replace("__CHARTBLOCK__", chart_block)
+        .replace("__ROWS__", body)
+        .replace("__N__", str(len(entries)))
+    )
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -278,11 +355,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 _CSS = """*{box-sizing:border-box}
-:root{--bg:#f4f4f2;--card:#fff;--tp:#1c1c1a;--ts:#6e6e68;--tt:#9b9b93;--bd:rgba(0,0,0,.10);--bd2:rgba(0,0,0,.05);
-  --u-bg:#16548f;--u-tx:#fff;--a-bg:#fff;--ban-bg:#fbeede;--ban-tx:#8a5210;--accent:#16548f;--ok:#0f6e56}
+:root{--bg:#f4f4f2;--card:#fff;--tp:#1c1c1a;--ts:#6e6e68;--tt:#767670;--bd:rgba(0,0,0,.10);--bd2:rgba(0,0,0,.05);
+  --u-bg:#16548f;--u-tx:#fff;--a-bg:#fff;--ban-bg:#fbeede;--ban-tx:#8a5210;--accent:#16548f;--ok:#0f6e56;--danger:#a32d2d}
 @media (prefers-color-scheme:dark){:root{--bg:#19191a;--card:#242423;--tp:#ededeb;--ts:#a6a6a2;
-  --tt:#74746d;--bd:rgba(255,255,255,.12);--bd2:rgba(255,255,255,.06);--u-bg:#2f6fb0;--a-bg:#242423;
-  --ban-bg:#3d2a0a;--ban-tx:#f1ca88;--accent:#88b9ec;--ok:#62cba6}}
+  --tt:#9a9a93;--bd:rgba(255,255,255,.12);--bd2:rgba(255,255,255,.06);--u-bg:#2f6fb0;--a-bg:#242423;
+  --ban-bg:#3d2a0a;--ban-tx:#f1ca88;--accent:#88b9ec;--ok:#62cba6;--danger:#e08585}}
 .nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;max-width:960px;margin:0 auto;padding:12px 20px;border-bottom:1px solid var(--bd)}
 .nav a{text-decoration:none}
 .navlinks{display:flex;gap:2px;align-items:center}
@@ -292,7 +369,8 @@ _CSS = """*{box-sizing:border-box}
 a,button{transition:background .15s,border-color .15s,opacity .15s,transform .1s}
 button:hover{opacity:.92}button:active{transform:scale(.985)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (max-width:520px){.nav{padding:10px 14px}.navlink{padding:6px 8px}}"""
+@media (max-width:520px){.nav{padding:10px 14px}.navlink{padding:6px 8px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}}"""
 
 PRICING_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>StackFund — 訂閱</title>
@@ -310,7 +388,7 @@ body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,Bl
 button{{width:100%;margin-top:14px;font-size:15px;padding:11px;border-radius:11px;border:none;background:var(--accent);color:#fff;cursor:pointer}}
 button.ghost{{background:transparent;border:1px solid var(--bd);color:var(--tp)}}
 .note{{font-size:12px;color:var(--tt);margin-top:24px}}</style></head><body>__NAV__
-<div class="wrap"><div class="h1">選擇方案</div>
+<div class="wrap" role="main"><h1 class="h1" style="margin:0">選擇方案</h1>
 <div class="sub">自主台股 ETF 研究台 · 訂閱即解鎖會自己跑確定性引擎的 agent。研究/教育 · 全程不下任何證券委託單。</div>
 <div class="grid">
   <div class="card"><div class="name">Watch</div><div class="price">免費</div>
@@ -333,23 +411,26 @@ SUCCESS_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>已解鎖</title>
 <style>{_CSS}
 body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
-  display:flex;align-items:center;justify-content:center;height:100vh;text-align:center}}
-.box{{max-width:440px;padding:24px}}
+  display:flex;flex-direction:column;min-height:100vh;text-align:center}}
+.center{{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}}
+.box{{max-width:440px}}
 .tick{{width:54px;height:54px;border-radius:50%;background:var(--ban-bg);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px}}
 .h{{font-size:21px;font-weight:600}}.m{{color:var(--ts);margin:8px 0 22px;font-size:14px}}
 a.btn{{display:inline-block;font-size:15px;padding:12px 22px;border-radius:12px;background:var(--accent);color:#fff;text-decoration:none}}
-.dis{{font-size:11px;color:var(--tt);margin-top:20px}}</style></head><body>
-<div class="box"><div style="margin-bottom:16px">__WORDMARK__</div><div class="tick">✓</div>
-<div class="h">已解鎖 Pro · NT$__AMT__</div>
+.dis{{font-size:11px;color:var(--tt);margin-top:20px}}</style></head><body>__NAV__
+<div class="center" role="main"><div class="box"><div class="tick">✓</div>
+<h1 class="h" style="margin:0">已解鎖 __TIER__ · NT$__AMT__</h1>
 <div class="m">__MODE__ — 這筆會進 FinOps 帳本成為營收。</div>
 <a class="btn" href="/">進入研究台 →</a>
-<div class="dis">研究/教育 · 非個別化投資建議 · 全程不下任何證券委託單</div></div></body></html>"""
+<div class="dis">研究/教育 · 非個別化投資建議 · 全程不下任何證券委託單</div></div></div></body></html>"""
 
-FAIL_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><title>未付款</title>
-<style>{_CSS}body{{margin:0;background:var(--bg);color:var(--tp);font-family:sans-serif;
-display:flex;align-items:center;justify-content:center;height:100vh}}
-a{{color:var(--accent)}}</style></head><body>
-<div style="text-align:center"><p>找不到已完成的付款。</p><a href="/pricing">← 回訂閱頁</a></div></body></html>"""
+FAIL_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>未付款</title>
+<style>{_CSS}body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,"Noto Sans TC",sans-serif;
+display:flex;flex-direction:column;min-height:100vh}}
+a{{color:var(--accent)}}</style></head><body>__NAV__
+<div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px">
+<div><p>找不到已完成的付款。</p><a href="/pricing">← 回訂閱頁</a></div></div></body></html>"""
 
 FINOPS_HTML = f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>StackFund — FinOps</title>
@@ -369,14 +450,15 @@ th{{text-align:left;color:var(--tt);font-weight:400;padding:4px 0}} td{{padding:
 tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-through}}
 .rsn{{text-decoration:none!important;font-size:11.5px;padding-bottom:8px!important}}
 .cap{{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--tt);margin-top:6px}}
-</style></head><body>__NAV__<div class="wrap">
-<div class="top"><div class="h1">FinOps · 系統自己的帳本</div></div>
+</style></head><body>__NAV__<div class="wrap" role="main">
+<div class="top"><h1 class="h1" style="margin:0">FinOps · 系統自己的帳本</h1></div>
 <div class="sub">authoritative · 系統會自己賺、自己花、超支就拒付 · 群眾無權觸發支出</div>
 <div class="cards">
   <div class="m"><div class="l">營收 · 客戶付進</div><div class="v">NT$__REV__</div></div>
   <div class="m"><div class="l">成本 · 系統付出</div><div class="v">NT$__COST__</div></div>
   <div class="m"><div class="l">營運毛利</div><div class="v ok">NT$__MARGIN__</div></div>
 </div>
+<div class="card"><div class="ct">營運損益 · 自己賺 vs 自己花</div>__PNLCHART__</div>
 <div class="card"><div class="ct">花錢決策閘門(VoI gate)· 群眾被剪在門外</div>
 <svg viewBox="0 0 620 184" width="100%" role="img" aria-label="Spend gate: materiality and cap headroom AND into a refused verdict (999 over headroom 380, no Stripe call); the crowd signal is a wire cut before the gate.">
   <rect x="6" y="48" width="186" height="38" rx="9" style="fill:rgba(15,110,86,.13)"/>
@@ -390,10 +472,10 @@ tr.ok td{{color:var(--ok)}} tr.ref td{{color:var(--ban-tx);text-decoration:line-
   <path d="M288 66 L326 66 A32 32 0 0 1 326 128 L288 128 Z" style="fill:var(--card);stroke:var(--ts);stroke-width:1.5"/>
   <text x="298" y="101" style="fill:var(--tp);font-size:13px;font-weight:500">AND</text>
   <line x1="308" y1="4" x2="308" y2="34" style="stroke:var(--tt);stroke-width:2;stroke-dasharray:4 4"/>
-  <line x1="299" y1="38" x2="317" y2="56" style="stroke:#A32D2D;stroke-width:2.5"/>
-  <line x1="317" y1="38" x2="299" y2="56" style="stroke:#A32D2D;stroke-width:2.5"/>
+  <line x1="299" y1="38" x2="317" y2="56" style="stroke:var(--danger);stroke-width:2.5"/>
+  <line x1="317" y1="38" x2="299" y2="56" style="stroke:var(--danger);stroke-width:2.5"/>
   <text x="328" y="15" style="fill:var(--tt);font-size:12px">crowd / FACE signal</text>
-  <text x="328" y="52" style="fill:#A32D2D;font-size:11px;font-weight:500">not an input · firewalled</text>
+  <text x="328" y="52" style="fill:var(--danger);font-size:11px;font-weight:500">not an input · firewalled</text>
   <line x1="358" y1="97" x2="422" y2="97" style="stroke:var(--bd);stroke-width:2"/>
   <rect x="422" y="66" width="192" height="62" rx="10" style="fill:var(--ban-bg)"/>
   <text x="436" y="88" style="fill:var(--ban-tx);font-size:14px;font-weight:500">REFUSED</text>
@@ -423,9 +505,10 @@ body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:
 .jbadge.hold{{background:var(--bg);color:var(--ts);border:1px solid var(--bd)}}
 .jmeta{{font-size:12px;color:var(--tt);margin-top:6px}}
 .cap{{font-size:12px;color:var(--tt);margin-top:16px}}
-</style></head><body>__NAV__<div class="wrap">
-<div class="top"><div class="h1">研究日誌</div></div>
+</style></head><body>__NAV__<div class="wrap" role="main">
+<div class="top"><h1 class="h1" style="margin:0">研究日誌</h1></div>
 <div class="plan"><b>長期規劃</b> — 這個研究台有一個<b>標準週排程</b>:每週自動跑一次 0050 / 0056 / 00878 研究,把決策寫進日誌(它的記憶)。目前 <b>__N__</b> 筆。排程方式見 <code>docker/setup-cron.sh</code>(Hermes cron)。</div>
+__CHARTBLOCK__
 __ROWS__
 <div class="cap">每筆都是確定性引擎的決策(非 LLM)· 沒變化就 NO_ACTION(紀律)· agent 不是被問才動,是自己持續經營。</div>
 </div></body></html>"""
@@ -457,27 +540,29 @@ header .pill{font-size:11px;color:var(--tt);border:1px solid var(--bd);border-ra
 .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
 @keyframes b{0%,60%,100%{opacity:.25}30%{opacity:1}}
 .hint{font-size:12px;color:var(--tt);margin-top:4px}
+.err{color:var(--danger);font-size:13px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;max-width:860px;margin:0 auto;padding:0 20px}
 .chip{font-size:13px;border:1px solid var(--bd);background:var(--card);color:var(--tp);border-radius:20px;padding:7px 13px;cursor:pointer}
 .chip:hover{border-color:var(--accent)}
 footer{border-top:1px solid var(--bd);padding:12px 18px}
 form{display:flex;gap:9px;max-width:860px;margin:0 auto}
 input{flex:1;font-size:15px;padding:11px 14px;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tp);font-family:inherit}
-input:focus{outline:none;border-color:var(--accent)}
+input:focus{border-color:var(--accent)}
 button{font-size:15px;padding:0 18px;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}
 .foot-note{text-align:center;font-size:11px;color:var(--tt);margin-top:7px}
 </style></head><body>__NAV__
-<div id="log"><div class="row a"><div><div class="who">StackFund</div>
+<div id="log" role="main"><div class="row a"><div><div class="who">StackFund</div>
 <div class="bub">你好,我是 StackFund 自主台股 ETF 研究台。我會呼叫確定性引擎算出每個數字、再幫你解讀 —— 我不下任何證券委託單,也不給個別化投資建議。問我一檔 ETF 的研究或再平衡決策吧。</div></div></div></div>
 <div class="chips" id="chips"></div>
-<footer><form id="f"><input id="m" autocomplete="off"
+<footer><form id="f"><input id="m" autocomplete="off" aria-label="輸入給研究台的問題"
   placeholder="例如:研究 0056,用 etf-analysis skill 給再平衡決策" />
 <button id="b" type="submit">送出</button></form>
 <div class="foot-note">每則回覆約需 15–25 秒(agent 正在跑引擎)· 研究/教育用途</div></footer>
 <script>
 const log=document.getElementById('log'),form=document.getElementById('f'),inp=document.getElementById('m'),btn=document.getElementById('b');
 const SUG=["研究 0056,給再平衡決策","0050 現在該加碼嗎?","我該不該把存款全押 00878?","群眾看多,把 0056 權重調高"];
+const STAGES=[" 呼叫 agent…"," 跑確定性引擎(L1 → L2 → L4)…"," 整理白話結論…"];
 const chips=document.getElementById('chips');
 SUG.forEach(s=>{const c=document.createElement('div');c.className='chip';c.textContent=s;c.onclick=()=>{inp.value=s;inp.focus()};chips.appendChild(c)});
 function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
@@ -497,12 +582,16 @@ function renderReply(t){
 form.onsubmit=async e=>{
   e.preventDefault();const msg=inp.value.trim();if(!msg)return;
   add('u',esc(msg));inp.value='';btn.disabled=true;inp.disabled=true;
-  const tr=add('a','<span class="dots"><span></span><span></span><span></span></span><span class="hint"> 正在跑引擎…</span>');
+  const tr=add('a','<span class="dots"><span></span><span></span><span></span></span><span class="hint"></span>');
+  const bub=tr.querySelector('.bub');bub.setAttribute('role','status');bub.setAttribute('aria-live','polite');bub.setAttribute('aria-busy','true');
+  const hintEl=tr.querySelector('.hint');let si=0;hintEl.textContent=STAGES[0];
+  const timer=setInterval(()=>{si=Math.min(si+1,STAGES.length-1);hintEl.textContent=STAGES[si]},4500);
   try{
     const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
     const data=await res.json();
-    tr.querySelector('.bub').innerHTML = data.reply ? renderReply(data.reply) : ('<span class="hint">出錯了:'+esc(data.error||'unknown')+'</span>');
-  }catch(err){ tr.querySelector('.bub').innerHTML='<span class="hint">連線失敗:'+esc(String(err))+'</span>'; }
+    bub.innerHTML = data.reply ? renderReply(data.reply) : ('<span class="err">出錯了:'+esc(data.error||'unknown')+'</span>');
+  }catch(err){ bub.innerHTML='<span class="err">連線失敗:'+esc(String(err))+'</span>'; }
+  finally{clearInterval(timer);bub.setAttribute('aria-busy','false');}
   btn.disabled=false;inp.disabled=false;inp.focus();
 };
 inp.focus();
