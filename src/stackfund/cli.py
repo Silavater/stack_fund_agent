@@ -45,6 +45,7 @@ from stackfund.l5_finops import (
 from stackfund.l6_audit import crowd_report_provenance, decision_provenance
 from stackfund.ledgers import experiment_ledger, finops_ledger, portfolio_ledger
 from stackfund.report import compose_divergence
+from stackfund.report.desk import render_desk_html
 
 
 def _fixtures_dir() -> Path:
@@ -66,19 +67,24 @@ def _load_portfolio() -> PortfolioState:
     )
 
 
-def cmd_pipeline(args: argparse.Namespace) -> int:
-    symbols = args.symbols or ["0050", "0056", "00878"]
+def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
+    """Run L1->L2->L4 + L3 FACE + L5 ledgers; return a structured, JSON-able dict.
+
+    Single compute path: ``cmd_pipeline`` renders it as text/JSON, ``cmd_desk``
+    renders it as a static HTML research-desk view. L4 still consumes only an
+    ``AuthoritativeState`` — the crowd FACE is read for divergence at report time.
+    """
     portfolio = _load_portfolio()
     policy = PolicySet()
     costs = CostModel()
     market = MarketState(session="closed", as_of="2026-06-19")
-    run_id = f"run_{args.seed}"
+    run_id = f"run_{seed}"
 
     receipts = [record_earn("earn_001", 299.0)]  # one Pro subscription (test-mode earn)
     cap_remaining = 500.0
     plans = []
+    etfs: list[dict] = []
 
-    print(f"=== StackFund pipeline (scenario={args.scenario!r}, seed={args.seed}) ===")
     for sym in symbols:
         book = load_databook_from_fixture(_fixtures_dir() / f"etf_{sym}.json")
         scorecard = build_scorecard(book)
@@ -88,28 +94,32 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
         plans.append(plan)
 
         # FACE side-rail (dry-run): narrative only; divergence computed at report time.
-        seed = make_seed(book, market_scenario_label=args.scenario, rng_seed=args.seed)
-        narrative = run_scenario(seed, dry_run=True)
+        seed_obj = make_seed(book, market_scenario_label=scenario, rng_seed=seed)
+        narrative = run_scenario(seed_obj, dry_run=True)
         divergence = compose_divergence(narrative, scorecard)
         crowd_report_provenance(narrative, divergence)
 
+        row: dict = {
+            "symbol": sym,
+            "action": plan.action,
+            "reason_codes": list(plan.reason_codes),
+            "no_action_reason": plan.no_action_reason,
+            "crowd_consensus": divergence.crowd_consensus,
+            "engine_posture": divergence.engine_posture,
+            "divergence_bucket": divergence.divergence_bucket,
+        }
         if plan.deltas:
             d = plan.deltas[0]
-            print(
-                f"[{sym}] HARD {plan.action} {d.hard_delta_pp:+.2f}pp "
-                f"(target {d.target_weight_pct:.1f}%, benefit {d.benefit_bps}bps "
-                f"vs cost {d.cost_bps}bps) reasons={list(d.hard_reasons)}"
+            row.update(
+                {
+                    "delta_pp": round(d.hard_delta_pp, 2),
+                    "target_weight_pct": round(d.target_weight_pct, 1),
+                    "benefit_bps": d.benefit_bps,
+                    "cost_bps": d.cost_bps,
+                    "reasons": list(d.hard_reasons),
+                }
             )
-        else:
-            print(
-                f"[{sym}] HARD {plan.action} reasons={list(plan.reason_codes)} "
-                f"({plan.no_action_reason})"
-            )
-        print(
-            f"      FACE (non-authoritative, NOT in plan): "
-            f"crowd={divergence.crowd_consensus} vs engine={divergence.engine_posture} "
-            f"-> divergence={divergence.divergence_bucket}"
-        )
+        etfs.append(row)
 
     # FinOps SPEND + REFUSED SPEND beat (the business, not ETFs)
     receipts.append(attempt_spend("spend_001", 120.0, cap_remaining))
@@ -119,23 +129,89 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
 
     fin = finops_ledger(run_id, receipts, pnl)
     port = portfolio_ledger(run_id, plans)
-    exp = experiment_ledger(
-        run_id, parent_run_id="none", rng_seed=args.seed, scenario_label=args.scenario
-    )
+    exp = experiment_ledger(run_id, parent_run_id="none", rng_seed=seed, scenario_label=scenario)
 
+    return {
+        "meta": {
+            "scenario": scenario,
+            "seed": seed,
+            "run_id": run_id,
+            "formula_version": exp.formula_version,
+            "as_of": market.as_of,
+        },
+        "etfs": etfs,
+        "finops": {
+            "revenue": fin.pnl.revenue,
+            "cost": fin.pnl.cost,
+            "gross_margin": fin.pnl.gross_margin,
+            "refused": [{"reason": r.reason} for r in fin.receipts if r.type == "refused_spend"],
+        },
+        "portfolio": [
+            {"symbol": e.etf_symbol, "action": e.action, "delta_pp": round(e.simulated_delta_pp, 2)}
+            for e in port
+        ],
+        "experiment": {
+            "run_id": exp.run_id,
+            "seed": exp.rng_seed,
+            "formula_version": exp.formula_version,
+        },
+    }
+
+
+def cmd_pipeline(args: argparse.Namespace) -> int:
+    symbols = args.symbols or ["0050", "0056", "00878"]
+    result = build_pipeline_result(symbols, args.scenario, args.seed)
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    print(f"=== StackFund pipeline (scenario={args.scenario!r}, seed={args.seed}) ===")
+    for e in result["etfs"]:
+        if "delta_pp" in e:
+            print(
+                f"[{e['symbol']}] HARD {e['action']} {e['delta_pp']:+.2f}pp "
+                f"(target {e['target_weight_pct']:.1f}%, benefit {e['benefit_bps']}bps "
+                f"vs cost {e['cost_bps']}bps) reasons={e['reasons']}"
+            )
+        else:
+            print(
+                f"[{e['symbol']}] HARD {e['action']} reasons={e['reason_codes']} "
+                f"({e['no_action_reason']})"
+            )
+        print(
+            f"      FACE (non-authoritative, NOT in plan): "
+            f"crowd={e['crowd_consensus']} vs engine={e['engine_posture']} "
+            f"-> divergence={e['divergence_bucket']}"
+        )
+
+    fin = result["finops"]
     print("\n--- Ledgers (kept strictly separate) ---")
     print(
         f"FinOps Ledger (business; NOT ETF investment P&L): "
-        f"revenue={fin.pnl.revenue} cost={fin.pnl.cost} gross_margin={fin.pnl.gross_margin}"
+        f"revenue={fin['revenue']} cost={fin['cost']} gross_margin={fin['gross_margin']}"
     )
-    for r in fin.receipts:
-        if r.type == "refused_spend":
-            print(f"  REFUSED SPEND: {r.reason}")
-    moves = "; ".join(f"{e.etf_symbol} {e.action} {e.simulated_delta_pp:+.2f}pp" for e in port)
+    for r in fin["refused"]:
+        print(f"  REFUSED SPEND: {r['reason']}")
+    moves = "; ".join(
+        f"{e['symbol']} {e['action']} {e['delta_pp']:+.2f}pp" for e in result["portfolio"]
+    )
     print(f"Portfolio Ledger (SIMULATED allocation, no orders): {moves}")
+    ex = result["experiment"]
     print(
-        f"Experiment Ledger: run_id={exp.run_id} seed={exp.rng_seed} formula={exp.formula_version}"
+        f"Experiment Ledger: run_id={ex['run_id']} seed={ex['seed']} "
+        f"formula={ex['formula_version']}"
     )
+    return 0
+
+
+def cmd_desk(args: argparse.Namespace) -> int:
+    symbols = args.symbols or ["0050", "0056", "00878"]
+    result = build_pipeline_result(symbols, args.scenario, args.seed)
+    html_text = render_desk_html(result)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html_text, encoding="utf-8")
+    print(f"wrote {out}  ({len(html_text)} bytes) — open it in a browser")
     return 0
 
 
@@ -244,7 +320,17 @@ def main(argv: list[str] | None = None) -> int:
     p_pipe.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
     p_pipe.add_argument("--scenario", default="升息")
     p_pipe.add_argument("--seed", type=int, default=42)
+    p_pipe.add_argument("--json", action="store_true", help="emit the structured result as JSON")
     p_pipe.set_defaults(func=cmd_pipeline)
+
+    p_desk = sub.add_parser(
+        "desk", help="render the pipeline result as a self-contained static HTML"
+    )
+    p_desk.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
+    p_desk.add_argument("--scenario", default="升息")
+    p_desk.add_argument("--seed", type=int, default=42)
+    p_desk.add_argument("--out", default="dist/stackfund-desk.html", help="output HTML path")
+    p_desk.set_defaults(func=cmd_desk)
 
     p_crowd = sub.add_parser("crowd", help="run only the L3 crowd side-rail")
     p_crowd.add_argument("--symbol", default="0056")
