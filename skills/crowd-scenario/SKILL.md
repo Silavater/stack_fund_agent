@@ -38,9 +38,30 @@ python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056
 - **G4** the model computes no number; numeric tokens in persona text are stripped.
 - **G5** determinism: `references/seed.lock.json` is the single source of truth.
 
+> **G1/G2 are machine-enforced.** The CLI validates this skill's output **fail-closed**
+> against the committed `crowd_narrative` schema before printing. Its
+> `additionalProperties:false` is the firewall's teeth — any numeric / decision-shaped
+> scalar is rejected — and `non_authoritative` is pinned `const: true`.
+
+## Worked example
+**User:** 推演 0056 在降息情境下散戶可能的反應
+
+`python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056_cut`
+→ emits (schema-validated; a sneaked scalar would abort the run):
+```json
+{"artifact_type": "CrowdNarrative", "crowd_consensus": "bullish", "non_authoritative": true,
+ "synthetic_population": true, "n_personas": 30, "seed_id": "seed_0056_…",
+ "narrative_md": "## 群眾情境推演 …"}
+```
+**Present it as scenario rehearsal — never a number, never a call:**
+> 〔情境推演 · 合成人格 · 非權威 · 已與決策層隔離〕在這個**降息假想情境**下,合成散戶人格
+> 整體偏多(crowd_consensus = bullish)。這是反應鏈推演,**不是預測,也不回寫任何權重或委託**。
+> 真正的決策請看 `stackfund-etf-analysis` 的確定性引擎;兩者分歧時,**以引擎為準**。
+
 ## References
 - `references/personas.md` — closed-set archetype taxonomy + behavioural priors.
 - `references/seed.lock.json` — rng_seed / model_id / temperature=0.
 - `references/firewall.md` — the executable firewall contract.
-- `references/output-schema.md` — `schemas/crowd_narrative.schema.json`.
+- `references/output-schema.md` — the committed `crowd_narrative` schema, enforced
+  fail-closed at `stackfund/contracts/schemas/`.
 - `references/clean-room.md` — AGPL boundary (honest provenance).

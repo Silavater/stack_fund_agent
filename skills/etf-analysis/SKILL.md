@@ -47,10 +47,35 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating.
 
 ## Contract & firewall
-- Output validates against `schemas/rebalance_plan.schema.json` /
-  `schemas/etf_research_report.schema.json`.
+- Every run is validated **fail-closed** against the engine's committed JSON
+  Schemas *before* output — `rebalance_plan` (the per-ETF decisions) and
+  `etf_research_report` (the full report), in `stackfund/contracts/schemas/`.
+  A contract violation aborts with a non-zero exit; the wrapper inherits this.
 - The crowd-scenario layer is **not** part of this skill's decision path (L4/L5
   never import it — enforced by `import-linter` + tests).
+
+## Worked example
+**User:** 研究 0056,給再平衡決策
+
+1. `python ${HERMES_SKILL_DIR}/scripts/fetch.py --symbol 0056 --live` → immutable `DataBook`.
+2. `python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878` → the engine
+   computes every number and emits a schema-validated report. The 0056 decision (excerpt):
+   ```json
+   {"symbol": "0056", "action": "REBALANCE", "delta_pp": 5.0, "target_weight_pct": 37.4,
+    "benefit_bps": 81.0, "cost_bps": 19.0,
+    "reasons": ["valuation +0.30", "yield/fundamental +1.00", "trend -0.10"],
+    "crowd_consensus": "neutral", "engine_posture": "bullish", "divergence_bucket": "MEDIUM"}
+   ```
+3. **Interpret — invent no number; plain language first, jargon in a separate detail block:**
+   > 【結論】0056 偏正向,引擎在這個研究情境下建議**小幅加碼**到約 37% 權重。
+   > 【為什麼】估值與配息面偏好,而且**預期效益明顯大於買賣成本**(不是追價)。
+   > 〔細節〕REBALANCE +5.00pp → 目標 37.4%;benefit 81bps(約每投入 1 萬多 ~81 元預期效益)
+   > > cost 19bps;reason codes valuation +0.30 / yield +1.00 / trend −0.10。群眾 neutral、
+   > 引擎 bullish、分歧 MEDIUM —— 群眾僅供參考,不影響決策。
+   > *研究/教育 · 非個別化建議 · 不下任何證券委託單。*
+
+   For a `NO_ACTION` (e.g. 0050 `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`): lead with
+   「這週不動 0050 —— 預期效益還蓋不過手續費/稅,動了反而虧」, then the bps detail.
 
 ## References
 - `references/data-sources.md` — real connectors + source priority + ETF caveats.

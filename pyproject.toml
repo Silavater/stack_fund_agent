@@ -23,6 +23,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/stackfund"]
 
+# Ship the output-contract JSON Schemas as package data (loaded at runtime by
+# stackfund.contracts.validation) so the wheel/container install can enforce them.
+[tool.hatch.build.targets.wheel.force-include]
+"src/stackfund/contracts/schemas" = "stackfund/contracts/schemas"
+
 [dependency-groups]
 dev = [
   "pytest>=8.0",

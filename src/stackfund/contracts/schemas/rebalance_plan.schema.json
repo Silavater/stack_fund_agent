@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stackfund/rebalance_plan",
+  "title": "StackFund rebalance plan — array of per-ETF deterministic decisions",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "symbol",
+      "action",
+      "reason_codes",
+      "crowd_consensus",
+      "engine_posture",
+      "divergence_bucket"
+    ],
+    "properties": {
+      "symbol": { "type": "string", "minLength": 1 },
+      "action": { "enum": ["NO_ACTION", "REBALANCE"] },
+      "reason_codes": { "type": "array", "items": { "type": "string" } },
+      "no_action_reason": { "type": ["string", "null"] },
+      "crowd_consensus": { "enum": ["bearish", "neutral", "bullish"] },
+      "engine_posture": { "type": "string" },
+      "divergence_bucket": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+      "delta_pp": { "type": "number" },
+      "target_weight_pct": { "type": "number" },
+      "benefit_bps": { "type": "number" },
+      "cost_bps": { "type": "number" },
+      "reasons": { "type": "array", "items": { "type": "string" } }
+    },
+    "allOf": [
+      {
+        "if": { "properties": { "action": { "const": "REBALANCE" } } },
+        "then": {
+          "required": [
+            "delta_pp",
+            "target_weight_pct",
+            "benefit_bps",
+            "cost_bps",
+            "reasons"
+          ]
+        }
+      }
+    ]
+  }
+}
