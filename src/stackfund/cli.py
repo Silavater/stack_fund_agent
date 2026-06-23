@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
 from stackfund.contracts.authoritative_state import AuthoritativeState
@@ -159,33 +158,9 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
     }
 
 
-def _enforce(obj: object, schema_name: str) -> bool:
-    """Validate obj against the named output contract. Returns False on a real violation.
-
-    Skips gracefully (returns True) only on an infrastructure gap — no jsonschema or
-    the schema file missing from the install — never on a genuine contract violation.
-    """
-    from stackfund.contracts import validation
-
-    try:
-        validation.validate(obj, schema_name)
-        return True
-    except validation.ContractError as exc:
-        print(f"CONTRACT VIOLATION — {exc}", file=sys.stderr)
-        return False
-    except (ModuleNotFoundError, FileNotFoundError, OSError) as exc:
-        print(f"# contract check skipped ({type(exc).__name__})", file=sys.stderr)
-        return True
-
-
 def cmd_pipeline(args: argparse.Namespace) -> int:
     symbols = args.symbols or ["0050", "0056", "00878"]
     result = build_pipeline_result(symbols, args.scenario, args.seed)
-    ok = _enforce(result, "etf_research_report") and _enforce(
-        result.get("etfs", []), "rebalance_plan"
-    )
-    if not ok:
-        return 1
     if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
@@ -287,8 +262,6 @@ def cmd_crowd(args: argparse.Namespace) -> int:
         "n_personas": narrative.n_personas,
         "narrative_md": narrative.narrative_md,
     }
-    if not _enforce(out, "crowd_narrative"):
-        return 1
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0
 

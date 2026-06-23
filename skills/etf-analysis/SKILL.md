@@ -47,10 +47,9 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating.
 
 ## Contract & firewall
-- Every run is validated **fail-closed** against the engine's committed JSON
-  Schemas *before* output — `rebalance_plan` (the per-ETF decisions) and
-  `etf_research_report` (the full report), in `stackfund/contracts/schemas/`.
-  A contract violation aborts with a non-zero exit; the wrapper inherits this.
+- The engine's artifacts validate against committed JSON Schemas in `schemas/`
+  (`rebalance_plan`, `etf_research_report`, …); `tests/test_schema_validation.py`
+  asserts conformance, and `STACKFUND_SCHEMA_DIR` locates them at runtime.
 - The crowd-scenario layer is **not** part of this skill's decision path (L4/L5
   never import it — enforced by `import-linter` + tests).
 
@@ -59,7 +58,7 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
 
 1. `python ${HERMES_SKILL_DIR}/scripts/fetch.py --symbol 0056 --live` → immutable `DataBook`.
 2. `python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878` → the engine
-   computes every number and emits a schema-validated report. The 0056 decision (excerpt):
+   computes every number (its artifacts are schema-checked in CI). The 0056 decision (excerpt):
    ```json
    {"symbol": "0056", "action": "REBALANCE", "delta_pp": 5.0, "target_weight_pct": 37.4,
     "benefit_bps": 81.0, "cost_bps": 19.0,
