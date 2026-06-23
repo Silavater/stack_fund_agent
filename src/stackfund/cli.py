@@ -86,7 +86,10 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
     etfs: list[dict] = []
 
     for sym in symbols:
-        book = load_databook_from_fixture(_fixtures_dir() / f"etf_{sym}.json")
+        fpath = _fixtures_dir() / f"etf_{sym}.json"
+        book = load_databook_from_fixture(fpath)
+        # presentation-only close series for the desk price chart (NOT a decision input)
+        price_series = json.loads(fpath.read_text(encoding="utf-8")).get("price_series", [])
         scorecard = build_scorecard(book)
         state = AuthoritativeState(scorecard, portfolio, policy, costs, market)
         plan = build_rebalance_plan(state)  # ENGINE: AuthoritativeState only, never FACE
@@ -107,6 +110,7 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
             "crowd_consensus": divergence.crowd_consensus,
             "engine_posture": divergence.engine_posture,
             "divergence_bucket": divergence.divergence_bucket,
+            "price_series": price_series,
         }
         if plan.deltas:
             d = plan.deltas[0]

@@ -83,8 +83,35 @@ _WORDMARK = (
 )
 
 
+def _price_chart_svg(series: object) -> str:
+    """Server-rendered close-price sparkline (no JS, no CDN) — same pattern as the P&L bars.
+
+    Presentation only: the series is illustrative market context, never a decision input.
+    Green if the window closed up, amber if down.
+    """
+    pts = [float(x) for x in (series or []) if isinstance(x, (int, float))]
+    if len(pts) < 2:
+        return ""
+    w, h, pad = 248, 46, 4
+    lo, hi = min(pts), max(pts)
+    rng = (hi - lo) or 1.0
+    n = len(pts)
+    xs = [pad + (w - 2 * pad) * i / (n - 1) for i in range(n)]
+    ys = [pad + (h - 2 * pad) * (1 - (v - lo) / rng) for v in pts]
+    poly = " ".join(f"{x:.1f},{y:.1f}" for x, y in zip(xs, ys, strict=True))
+    col = "var(--ok-tx)" if pts[-1] >= pts[0] else "var(--warn-tx)"
+    return (
+        f'<svg viewBox="0 0 {w} {h}" width="100%" style="margin:9px 0 2px" role="img" '
+        f'aria-label="close price · {n} sessions · last {pts[-1]:.2f}">'
+        f'<polyline points="{poly}" fill="none" stroke="{col}" stroke-width="1.6" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<circle cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="2.4" fill="{col}"/></svg>'
+    )
+
+
 def _etf_card(e: dict) -> str:
     sym = _esc(e["symbol"])
+    chart = _price_chart_svg(e.get("price_series"))
     if "delta_pp" in e:  # REBALANCE
         badge = f"REBALANCE {e['delta_pp']:+.2f}pp"
         reasons = " · ".join(_esc(r) for r in e.get("reasons", []))
@@ -92,6 +119,7 @@ def _etf_card(e: dict) -> str:
             f'<div class="card etf featured"><div class="ehead">'
             f'<span class="ticker">{sym}</span>'
             f'<span class="badge act">{_esc(badge)}</span></div>'
+            f"{chart}"
             f'<div class="big">{e["target_weight_pct"]:.1f}%<span class="sub">target weight</span></div>'
             f'<div class="line">benefit <b>{_esc(e["benefit_bps"])} bps</b> '
             f"&gt; cost {_esc(e['cost_bps'])} bps</div>"
@@ -103,6 +131,7 @@ def _etf_card(e: dict) -> str:
         f'<div class="card etf"><div class="ehead">'
         f'<span class="ticker">{sym}</span>'
         f'<span class="badge hold">NO_ACTION</span></div>'
+        f"{chart}"
         f'<div class="mono code">{code}</div>'
         f'<div class="note">{note}</div></div>'
     )
