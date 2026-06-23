@@ -1,0 +1,15 @@
+{
+  "symbol": "00631L",
+  "observed_at": "2026-06-19",
+  "freshness": "frozen",
+  "metrics": {
+    "price": 168.5,
+    "nav": 168.7,
+    "discount_premium": -0.12,
+    "tracking_error": 0.8,
+    "yield": 0.0,
+    "price_5d_return": 0.9,
+    "catalyst_strength": 0.1,
+    "leveraged_or_inverse": 1.0
+  }
+}

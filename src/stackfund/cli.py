@@ -183,7 +183,7 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
 
 
 def cmd_pipeline(args: argparse.Namespace) -> int:
-    symbols = args.symbols or ["0050", "0056", "00878"]
+    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
     result = build_pipeline_result(
         symbols, args.scenario, args.seed, live=getattr(args, "live", False)
     )
@@ -231,7 +231,7 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
 
 
 def cmd_desk(args: argparse.Namespace) -> int:
-    symbols = args.symbols or ["0050", "0056", "00878"]
+    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
     result = build_pipeline_result(
         symbols, args.scenario, args.seed, live=getattr(args, "live", False)
     )
@@ -252,7 +252,7 @@ def cmd_journal(args: argparse.Namespace) -> int:
     """
     import datetime
 
-    symbols = args.symbols or ["0050", "0056", "00878"]
+    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
     result = build_pipeline_result(symbols, args.scenario, args.seed)
     actions = []
     for e in result["etfs"]:
@@ -379,7 +379,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_pipe = sub.add_parser("pipeline", help="run the full ENGINE pipeline over fixtures")
-    p_pipe.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
+    p_pipe.add_argument(
+        "--symbols", nargs="*", help="ETF symbols (default: 0050 0056 006208 00878 00919)"
+    )
     p_pipe.add_argument("--scenario", default="升息")
     p_pipe.add_argument("--seed", type=int, default=42)
     p_pipe.add_argument("--json", action="store_true", help="emit the structured result as JSON")
@@ -391,7 +393,9 @@ def main(argv: list[str] | None = None) -> int:
     p_desk = sub.add_parser(
         "desk", help="render the pipeline result as a self-contained static HTML"
     )
-    p_desk.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
+    p_desk.add_argument(
+        "--symbols", nargs="*", help="ETF symbols (default: 0050 0056 006208 00878 00919)"
+    )
     p_desk.add_argument("--scenario", default="升息")
     p_desk.add_argument("--seed", type=int, default=42)
     p_desk.add_argument("--out", default="dist/stackfund-desk.html", help="output HTML path")
@@ -403,7 +407,9 @@ def main(argv: list[str] | None = None) -> int:
     p_journal = sub.add_parser(
         "journal", help="append a dated research entry to the standing journal (the long-term plan)"
     )
-    p_journal.add_argument("--symbols", nargs="*", help="ETF symbols (default: 0050 0056 00878)")
+    p_journal.add_argument(
+        "--symbols", nargs="*", help="ETF symbols (default: 0050 0056 006208 00878 00919)"
+    )
     p_journal.add_argument("--scenario", default="升息")
     p_journal.add_argument("--seed", type=int, default=42)
     p_journal.add_argument("--date", default="", help="ISO date (default: today)")

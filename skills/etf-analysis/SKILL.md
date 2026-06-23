@@ -81,8 +81,10 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    「這週不動 0050 —— 預期效益還蓋不過手續費/稅,動了反而虧」, then the bps detail.
 
 ## Failure modes & scope
-- **Scope:** validated for **0050 / 0056 / 00878**. For any other ticker, say so and
-  offer the frozen-fixture path — never fabricate fundamentals.
+- **Scope:** **0050 / 0056 / 006208 / 00878 / 00919** (all pass the L2 eligibility gate).
+  The gate **rejects** stale / leveraged-inverse / thin / NAV-incomparable ETFs — e.g.
+  `00631L` (2× leveraged) → `NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`, by design.
+  For a ticker with no fixture, say so — never fabricate fundamentals.
 - **Live fetch fails / partial** → fall back to the frozen `DataBook` and **label it
   `frozen` / `partial`**; never present stale data as live.
 - **ETF yield / NAV / tracking-error are *reference*, not live** by default (the free TWSE
