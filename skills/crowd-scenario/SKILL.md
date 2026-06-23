@@ -28,6 +28,9 @@ the model only writes persona reaction *text*.
 # dry-run = zero LLM, zero spend (CI + demo fallback safe)
 python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056_cut
 ```
+> `--scenario` is a free-form context tag (bucketed to ordinal context — never raw numbers).
+> Useful labels: `升息` / `降息` / `0056_cut`(配息調整)/ `電子權值回檔` / `高股息追捧`.
+> Same seed + label → deterministic consensus.
 
 ## Hard rules (see references/firewall.md)
 - **G1** output whitelist: narrative / persona samples / stance counts / chain /

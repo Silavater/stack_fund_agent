@@ -44,7 +44,11 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    `AuthoritativeState`; `NO_ACTION` is first-class with `reason_codes`, incl.
    `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`) → L5/L6 (earn/spend + P&L).
 4. **Deep value mode (optional)** — for "long-term value / moat" requests, follow
-   `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating.
+   `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating —
+   a **structural-quality** classification (durability), **never** a buy/sell call.
+5. **Standing research (optional, long-term)** — the same deterministic pipeline can run
+   on a schedule (`python -m stackfund journal`, see `docker/setup-cron.sh`), accumulating
+   a dated research journal. The desk operates continuously, not only when asked.
 
 ## Contract & firewall
 - The engine's artifacts validate against committed JSON Schemas in `schemas/`
@@ -75,6 +79,16 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
 
    For a `NO_ACTION` (e.g. 0050 `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`): lead with
    「這週不動 0050 —— 預期效益還蓋不過手續費/稅,動了反而虧」, then the bps detail.
+
+## Failure modes & scope
+- **Scope:** validated for **0050 / 0056 / 00878**. For any other ticker, say so and
+  offer the frozen-fixture path — never fabricate fundamentals.
+- **Live fetch fails / partial** → fall back to the frozen `DataBook` and **label it
+  `frozen` / `partial`**; never present stale data as live.
+- **ETF yield / NAV / tracking-error are *reference*, not live** by default (the free TWSE
+  feed excludes ETFs) — label them reference, not truth.
+- **Always surface freshness:** state the `as_of` date and live-vs-frozen in every reply;
+  if a source is incomplete, mark it — don't invent. Detail: `references/data-sources.md`.
 
 ## References
 - `references/data-sources.md` — real connectors + source priority + ETF caveats.
