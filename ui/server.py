@@ -90,6 +90,15 @@ def _nav(active: str = "", lang: str = "zh") -> str:
     )
 
 
+def _sub_banner(sub_key: str | None, lang: str) -> str:
+    """A '✓ subscribed' banner for /pricing, from the sf_tier cookie set at checkout."""
+    t = TIERS.get(sub_key or "")
+    if not t or t["amount"] == 0:
+        return ""
+    s = STR[lang]
+    return f'<a href="/" class="subbanner">✓ {s["SUBBED"]} {t["name"]} · {s["ENTER_DESK"]}</a>'
+
+
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
 
 
@@ -149,19 +158,20 @@ def success_html(qs: dict) -> str:
             r = stripe_client.retrieve_checkout_session(session_id)
             if r["paid"]:
                 _EARNS.append({"amount": r["amount"], "id": r["id"]})
-                return _success(int(r["amount"]), "MODE_PAID", tier_name)
+                return _success(int(r["amount"]), "MODE_PAID", tier_name, tier)
         except Exception:  # noqa: BLE001
             pass
     if (qs.get("stub") or [None])[0]:
-        return _success(int(amt), "MODE_STUB", tier_name)
+        return _success(int(amt), "MODE_STUB", tier_name, tier)
     return FAIL_HTML
 
 
-def _success(amt: int, mode_key: str, tier_name: str = "Pro") -> str:
+def _success(amt: int, mode_key: str, tier_name: str = "Pro", tier_key: str = "pro") -> str:
     return (
         SUCCESS_HTML.replace("__TIER__", tier_name)
         .replace("__AMT__", str(amt))
         .replace("__MODE__", f"__T_{mode_key}__")
+        .replace("__SUBKEY__", tier_key)
     )
 
 
@@ -281,16 +291,20 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _cookie(self, name: str) -> str | None:
+        for part in self.headers.get("Cookie", "").split(";"):
+            part = part.strip()
+            if part.startswith(name + "="):
+                return part[len(name) + 1 :]
+        return None
+
     def _pick_lang(self) -> tuple[str, bool]:
         """(lang, should_set_cookie). ?lang= wins + persists via cookie; default zh."""
         q = (parse_qs(urlparse(self.path).query).get("lang") or [None])[0]
         if q in ("en", "zh"):
             return q, True
-        for part in self.headers.get("Cookie", "").split(";"):
-            part = part.strip()
-            if part.startswith("lang=") and part[5:] in ("en", "zh"):
-                return part[5:], False
-        return "zh", False
+        c = self._cookie("lang")
+        return (c, False) if c in ("en", "zh") else ("zh", False)
 
     def _html(self, html: str, active: str = "", lang: str = "zh", set_cookie: bool = False):
         html = html.replace("__NAV__", _nav(active, lang)).replace("__WORDMARK__", WORDMARK)
@@ -310,7 +324,8 @@ class Handler(BaseHTTPRequestHandler):
         if p.path in ("/", "/index.html"):
             self._html(INDEX_HTML, "chat", lang, setc)
         elif p.path == "/pricing":
-            self._html(PRICING_HTML, "pricing", lang, setc)
+            html = PRICING_HTML.replace("__SUBBANNER__", _sub_banner(self._cookie("sf_tier"), lang))
+            self._html(html, "pricing", lang, setc)
         elif p.path == "/success":
             self._html(success_html(parse_qs(p.query)), "", lang, setc)
         elif p.path == "/finops":
@@ -395,6 +410,7 @@ STR = {
         "MODE_PAID": "Stripe 測試模式 · 已付款",
         "MODE_STUB": "stub(無 Stripe key)· 已解鎖",
         "ENTER_DESK": "進入研究台 →",
+        "SUBBED": "你已訂閱",
         "DISCLAIMER": "研究/教育 · 非個別化投資建議 · 全程不下任何證券委託單",
         "TITLE_FAIL": "未付款",
         "NO_PAYMENT": "找不到已完成的付款。",
@@ -479,6 +495,7 @@ STR = {
         "MODE_PAID": "Stripe test mode · paid",
         "MODE_STUB": "stub (no Stripe key) · unlocked",
         "ENTER_DESK": "Enter the desk →",
+        "SUBBED": "You're subscribed to",
         "DISCLAIMER": "Research / education · not individual investment advice · never places any securities order",
         "TITLE_FAIL": "Not paid",
         "NO_PAYMENT": "No completed payment found.",
@@ -566,9 +583,12 @@ body{{margin:0;background:var(--bg);color:var(--tp);font-family:-apple-system,Bl
 .blurb{{font-size:13px;color:var(--ts);min-height:38px}}
 button{{width:100%;margin-top:14px;font-size:15px;padding:11px;border-radius:11px;border:none;background:var(--accent);color:#fff;cursor:pointer}}
 button.ghost{{background:transparent;border:1px solid var(--bd);color:var(--tp)}}
-.note{{font-size:12px;color:var(--tt);margin-top:24px}}</style></head><body>__NAV__
+.note{{font-size:12px;color:var(--tt);margin-top:24px}}
+.subbanner{{display:inline-block;text-decoration:none;background:var(--card);color:var(--ok);border:1px solid var(--ok);border-radius:11px;padding:9px 14px;font-size:14px;font-weight:500;margin:0 0 20px}}
+.subbanner:hover{{background:var(--bd2)}}</style></head><body>__NAV__
 <div class="wrap" role="main"><h1 class="h1" style="margin:0">__T_CHOOSE_PLAN__</h1>
 <div class="sub">__T_PRICING_SUB__</div>
+__SUBBANNER__
 <div class="grid">
   <div class="card"><div class="name">Watch</div><div class="price">__T_PRICE_FREE__</div>
     <div class="blurb">__T_WATCH_BLURB__</div><button class="ghost" onclick="buy('watch')">__T_WATCH_BTN__</button></div>
@@ -601,7 +621,8 @@ a.btn{{display:inline-block;font-size:15px;padding:12px 22px;border-radius:12px;
 <h1 class="h" style="margin:0">__T_UNLOCKED__ __TIER__ · $__AMT__</h1>
 <div class="m">__MODE__ __T_SUCCESS_NOTE__</div>
 <a class="btn" href="/">__T_ENTER_DESK__</a>
-<div class="dis">__T_DISCLAIMER__</div></div></div></body></html>"""
+<div class="dis">__T_DISCLAIMER__</div></div></div>
+<script>document.cookie="sf_tier=__SUBKEY__;path=/;max-age=2592000;samesite=lax"</script></body></html>"""
 
 FAIL_HTML = f"""<!DOCTYPE html><html lang="__HTMLLANG__"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>__T_TITLE_FAIL__</title>
