@@ -218,34 +218,11 @@ def _pnl_chart_svg(rev: float, cost: float, margin: float) -> str:
         )
         parts.append(
             f'<text x="{x0 + barw + 8}" y="{y + 16}" '
-            f'style="fill:var(--tp);font-size:12px;font-weight:600">NT${val:.0f}</text>'
+            f'style="fill:var(--tp);font-size:12px;font-weight:600">${val:.0f}</text>'
         )
         y += 34
     parts.append("</svg>")
     return "".join(parts)
-
-
-def _margin_bars_svg(margins: list[float]) -> str:
-    """A tiny per-week margin bar chart (chronological, oldest → newest)."""
-    if not margins:
-        return ""
-    mx = max(margins + [1.0])
-    n = len(margins)
-    w_total, h_total, gap = 300, 52, 7
-    bw = (w_total - gap * (n - 1)) / n
-    bars = []
-    for i, v in enumerate(margins):
-        h = max(4, int((h_total - 8) * max(v, 0.0) / mx))
-        x = i * (bw + gap)
-        # Solid fill (no opacity ramp) — equal weekly margins must read as flat, not rising.
-        bars.append(
-            f'<rect x="{x:.1f}" y="{h_total - h}" width="{bw:.1f}" height="{h}" rx="3" '
-            f'style="fill:var(--accent)"/>'
-        )
-    return (
-        f'<svg viewBox="0 0 {w_total} {h_total}" width="{w_total}" style="max-width:100%" role="img" '
-        f'aria-label="每週毛利,共 {n} 週">{"".join(bars)}</svg>'
-    )
 
 
 def finops_html() -> str:
@@ -290,19 +267,7 @@ def journal_html() -> str:
             f'<div class="jmeta">__T_JE_SCENARIO__ {e.get("scenario", "")} · __T_JE_MARGIN__ ${e.get("margin", 0):.0f}</div></div></div>'
         )
     body = "".join(rows) or '<p style="color:var(--ts);padding:14px 0">__T_JOURNAL_EMPTY__</p>'
-    chart = _margin_bars_svg([float(e.get("margin", 0)) for e in entries])
-    chart_block = (
-        '<div class="plan" style="margin:10px 0 4px">'
-        '<div style="font-size:12px;color:var(--ts);margin-bottom:7px">__T_JOURNAL_CHART_CAP__</div>'
-        f"{chart}</div>"
-        if chart
-        else ""
-    )
-    return (
-        JOURNAL_HTML.replace("__CHARTBLOCK__", chart_block)
-        .replace("__ROWS__", body)
-        .replace("__N__", str(len(entries)))
-    )
+    return JOURNAL_HTML.replace("__ROWS__", body).replace("__N__", str(len(entries)))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -462,7 +427,6 @@ STR = {
         "JOURNAL_TITLE": "研究日誌",
         "JOURNAL_PLAN_A": "<b>長期規劃</b> — 這個研究台有一個<b>標準週排程</b>:每週自動跑一次 0050 / 0056 / 00878 研究,把決策寫進日誌(它的記憶)。目前",
         "JOURNAL_PLAN_B": "筆。排程方式見 <code>docker/setup-cron.sh</code>(Hermes cron)。",
-        "JOURNAL_CHART_CAP": "每週毛利(每筆 = 一週)",
         "JOURNAL_EMPTY": "尚無紀錄 — 執行 <code>python -m stackfund journal</code> 產生第一筆。",
         "JE_SCENARIO": "情境",
         "JE_MARGIN": "毛利",
@@ -547,7 +511,6 @@ STR = {
         "JOURNAL_TITLE": "Research journal",
         "JOURNAL_PLAN_A": "<b>Long-term plan</b> — this desk runs a <b>standing weekly schedule</b>: every week it researches 0050 / 0056 / 00878 and writes the decisions to its journal (its memory). So far",
         "JOURNAL_PLAN_B": "entries. See <code>docker/setup-cron.sh</code> (Hermes cron) for scheduling.",
-        "JOURNAL_CHART_CAP": "Weekly margin (each bar = one week)",
         "JOURNAL_EMPTY": "No entries yet — run <code>python -m stackfund journal</code> to create the first.",
         "JE_SCENARIO": "scenario",
         "JE_MARGIN": "margin",
@@ -724,7 +687,6 @@ body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:
 </style></head><body>__NAV__<div class="wrap" role="main">
 <div class="top"><h1 class="h1" style="margin:0">__T_JOURNAL_TITLE__</h1></div>
 <div class="plan">__T_JOURNAL_PLAN_A__ <b>__N__</b> __T_JOURNAL_PLAN_B__</div>
-__CHARTBLOCK__
 __ROWS__
 <div class="cap">__T_JOURNAL_FOOT__</div>
 </div></body></html>"""
