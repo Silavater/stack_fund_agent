@@ -75,12 +75,17 @@ uv run python -m stackfund pipeline --json   # same, as a structured JSON result
 uv run python -m stackfund desk          # render a static HTML research desk → dist/stackfund-desk.html
 uv run python -m stackfund crowd --symbol 0056   # L3 side-rail (dry-run)
 uv run python -m stackfund verify        # determinism check
+uv run python -m stackfund journal       # append a dated entry to the standing research journal
 uv run python -m stackfund finops        # earn/spend/refused (stub) — add --live for real Stripe
 # real Stripe (test mode):  uv sync --extra stripe; put rk_test_… in secrets/stripe_secret_key.txt
 uv run python -m stackfund finops --live
 uv run pytest -q              # tests (incl. firewall)
 uv run lint-imports           # architectural firewall contracts
 ```
+
+**Web app** (buy → use → ops · bilingual EN/中 · USD test-mode): `bash docker/run-chat-ui.sh`
+→ open `http://localhost:5757/pricing` (routes: `/pricing` `/` `/finops` `/journal`).
+See [`doc/DEMO.md`](doc/DEMO.md).
 
 ### Docker
 ```bash

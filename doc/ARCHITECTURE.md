@@ -162,7 +162,30 @@ price/NAV/yield/weight/cap field anywhere.
 
 ---
 
-## 7. Deployment: Docker ⊂ OpenShell ⊂ NemoClaw
+## 7. Surfaces — CLI, web app, and standing research
+
+The same deterministic engine drives three surfaces; none of them can move a number
+the engine didn't compute.
+
+- **CLI** (`cli.py`, the composition root): `pipeline` (full `L1→L6` run, `--json` or text),
+  `crowd` (L3 FACE only, dry-run default), `verify` (determinism), `desk` (a static HTML
+  research-desk render), `journal` (append one dated decision to the standing research journal).
+- **Web app** (`ui/server.py`, a dependency-free stdlib server) — the buy→use→ops journey:
+  `/pricing` (3 plans, **USD $20 / $100**) → Stripe TEST-mode Checkout → `/success`
+  (server-verified `paid`; sets a subscribed cookie → a `✓ subscribed` banner) → `/` (chat:
+  one real agent turn per message, runs the skills + engine under `SOUL.md`) → `/finops` (the
+  monthly operating P&L + a P&L bar chart + the VoI gate + the receipts ledger) → `/journal`
+  (the standing weekly plan). Every page is **bilingual EN / 中** (cookie-persisted `?lang=`
+  + a `STR` table localized at render time). The app is **presentation only** — it shells out
+  to `python -m stackfund` and recomputes nothing; `report/desk.py` renders, the engine decides.
+- **Standing research (long-term planning)**: `python -m stackfund journal` runs the same
+  deterministic pipeline on a schedule (Hermes cron, or a host scheduler — `docker/setup-cron.sh`)
+  and accumulates `.hermes-data/research-journal.jsonl`, surfaced at `/journal`. The desk
+  operates continuously, not only when asked.
+
+---
+
+## 8. Deployment: Docker ⊂ OpenShell ⊂ NemoClaw
 
 ```
 StackFund agent (Hermes harness + skills + engine)
@@ -181,7 +204,7 @@ at runtime, never baked into a layer.
 
 ---
 
-## 8. Deferred / open
+## 9. Deferred / open
 
 - **L5A "execution" layer (open decision, pending review):** an architecture review
   proposed a paper-broker execution layer emitting `OrderReceipt`/`FillReceipt`. We
@@ -194,7 +217,7 @@ at runtime, never baked into a layer.
 
 ---
 
-## 9. Module map
+## 10. Module map
 
 ```
 src/stackfund/
@@ -207,10 +230,11 @@ src/stackfund/
 ├── l5_finops/            Stripe earn/spend/refused + VoI gate
 ├── l6_audit/             decision + crowd-report provenance
 ├── l3_crowd/             CrowdNarrative (FACE, firewalled)
-├── report/               Report Composer -> NarrativeDivergence (reads-only)
+├── report/               Report Composer -> NarrativeDivergence (reads-only) + desk.py (static HTML)
 ├── ledgers.py            Portfolio / FinOps / Experiment ledgers
-└── cli.py                composition root (pipeline / crowd / verify)
+└── cli.py                composition root (pipeline / crowd / verify / desk / journal)
 ```
 
-Run it: `uv run python -m stackfund pipeline` · tests `uv run pytest -q` · firewall
-`uv run lint-imports`.
+The **web app** lives outside the package at `ui/server.py` (stdlib, shells to the CLI;
+buy→use→ops, bilingual). Run it: `uv run python -m stackfund pipeline` · the app
+`bash docker/run-chat-ui.sh` · tests `uv run pytest -q` · firewall `uv run lint-imports`.

@@ -152,7 +152,27 @@ price/NAV/yield/weight/cap 欄位。
 
 ---
 
-## 7. 部署:Docker ⊂ OpenShell ⊂ NemoClaw
+## 7. 介面 —— CLI、網頁 App、長期研究
+
+同一套確定性引擎驅動三個介面;**沒有任何一個能移動引擎沒算過的數字**。
+
+- **CLI**(`cli.py`,composition root):`pipeline`(完整 `L1→L6`,`--json` 或文字)、
+  `crowd`(只跑 L3 FACE,預設 dry-run)、`verify`(determinism)、`desk`(靜態 HTML 研究台)、
+  `journal`(把一筆日期決策寫進長期研究日誌)。
+- **網頁 App**(`ui/server.py`,零相依 stdlib server)—— 買→用→營運的旅程:
+  `/pricing`(三方案,**美元 $20 / $100**)→ Stripe 測試模式結帳 → `/success`(伺服器端驗證
+  `paid`,寫 subscribed cookie → `✓ 已訂閱` 橫幅)→ `/`(對話:每則訊息跑一次真實 agent turn,
+  在 `SOUL.md` 下執行 skills + 引擎)→ `/finops`(本月營運損益 + P&L 長條圖 + VoI 閘門 + 收據明細)
+  → `/journal`(標準週排程)。每頁都是 **雙語 EN / 中**(cookie 持久化 `?lang=` + 一張 `STR` 表
+  在 render 時在地化)。App **只負責呈現** —— 它 shell out 到 `python -m stackfund`,不重算任何
+  數字;`report/desk.py` 負責 render,引擎負責決策。
+- **長期研究(長期規劃)**:`python -m stackfund journal` 把同一套確定性 pipeline 排程執行
+  (Hermes cron,或主機排程器 —— `docker/setup-cron.sh`),累積 `.hermes-data/research-journal.jsonl`,
+  呈現在 `/journal`。研究台**持續運作,不是被問才動**。
+
+---
+
+## 8. 部署:Docker ⊂ OpenShell ⊂ NemoClaw
 
 ```
 StackFund 代理（Hermes harness + skills + engine）
@@ -170,7 +190,7 @@ deterministic 主幹 image(`docker/Dockerfile.core`)以 **零 egress**(`--networ
 
 ---
 
-## 8. 暫緩 / 未決
+## 9. 暫緩 / 未決
 
 - **L5A「執行層」(未決,待 review 拍板):** 一份架構 review 建議加一個 paper-broker 執行層、
   輸出 `OrderReceipt`/`FillReceipt`。我們**採納分帳分離,但不採執行語意** —— 引入
@@ -181,7 +201,7 @@ deterministic 主幹 image(`docker/Dockerfile.core`)以 **零 egress**(`--networ
 
 ---
 
-## 9. 模組地圖
+## 10. 模組地圖
 
 ```
 src/stackfund/
@@ -194,10 +214,11 @@ src/stackfund/
 ├── l5_finops/            Stripe earn/spend/refused + VoI gate
 ├── l6_audit/             決策 + 群眾報告 provenance
 ├── l3_crowd/             CrowdNarrative（FACE,被防火牆隔離）
-├── report/               Report Composer -> NarrativeDivergence（只讀）
+├── report/               Report Composer -> NarrativeDivergence（只讀）+ desk.py（靜態 HTML）
 ├── ledgers.py            Portfolio / FinOps / Experiment 三本帳
-└── cli.py                composition root（pipeline / crowd / verify）
+└── cli.py                composition root（pipeline / crowd / verify / desk / journal）
 ```
 
-執行:`uv run python -m stackfund pipeline` · 測試 `uv run pytest -q` · 防火牆
-`uv run lint-imports`。
+**網頁 App** 在套件外的 `ui/server.py`(stdlib,shell out 到 CLI;買→用→營運、雙語)。
+執行:`uv run python -m stackfund pipeline` · App `bash docker/run-chat-ui.sh` · 測試
+`uv run pytest -q` · 防火牆 `uv run lint-imports`。
