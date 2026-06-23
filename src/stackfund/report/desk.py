@@ -179,7 +179,8 @@ def render_desk_html(result: dict) -> str:
         f'<div class="h1">{_WORDMARK}</div>'
         f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
         f"seed {_esc(m.get('seed', ''))} · formula {_esc(m.get('formula_version', ''))} · "
-        f"as of {_esc(m.get('as_of', ''))}</div></div>"
+        f"as of {_esc(m.get('as_of', ''))} · "
+        f'{"live data" if m.get("live") else "frozen fixtures"}</div></div>'
         '<span class="pill">研究/教育 · 不下任何證券委託單</span></div>'
         '<div class="sec">Rebalance decisions <span>· engine (authoritative)</span></div>'
         f'<div class="grid etfs">{cards}</div>'

@@ -67,7 +67,18 @@ def _load_portfolio() -> PortfolioState:
     )
 
 
-def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
+def _live_price_series(symbol: str) -> list[float]:
+    """Live daily close series for the desk chart — graceful: [] on any failure."""
+    try:
+        from stackfund.l1_databook.sources import yahoo
+
+        hist = yahoo.fetch_yahoo_history(symbol)
+        return [float(c) for c in (hist or {}).get("closes", [])]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bool = False) -> dict:
     """Run L1->L2->L4 + L3 FACE + L5 ledgers; return a structured, JSON-able dict.
 
     Single compute path: ``cmd_pipeline`` renders it as text/JSON, ``cmd_desk``
@@ -84,13 +95,20 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
     cap_remaining = 500.0
     plans = []
     etfs: list[dict] = []
+    last_observed = market.as_of  # display date — becomes the live observed_at when live
 
     for sym in symbols:
         fpath = _fixtures_dir() / f"etf_{sym}.json"
-        book = load_databook_from_fixture(fpath)
+        fixture_series = json.loads(fpath.read_text(encoding="utf-8")).get("price_series", [])
         # presentation-only close series for the desk price chart (NOT a decision input)
-        price_series = json.loads(fpath.read_text(encoding="utf-8")).get("price_series", [])
+        if live:
+            book = load_databook(sym, live=True, fixtures_dir=_fixtures_dir())
+            price_series = _live_price_series(sym) or fixture_series  # graceful fallback
+        else:
+            book = load_databook_from_fixture(fpath)
+            price_series = fixture_series
         scorecard = build_scorecard(book)
+        last_observed = book.observed_at
         state = AuthoritativeState(scorecard, portfolio, policy, costs, market)
         plan = build_rebalance_plan(state)  # ENGINE: AuthoritativeState only, never FACE
         decision_provenance(plan)
@@ -111,6 +129,7 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
             "engine_posture": divergence.engine_posture,
             "divergence_bucket": divergence.divergence_bucket,
             "price_series": price_series,
+            "freshness": book.freshness,
         }
         if plan.deltas:
             d = plan.deltas[0]
@@ -141,7 +160,8 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
             "seed": seed,
             "run_id": run_id,
             "formula_version": exp.formula_version,
-            "as_of": market.as_of,
+            "as_of": last_observed,
+            "live": live,
         },
         "etfs": etfs,
         "finops": {
@@ -164,7 +184,9 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int) -> dict:
 
 def cmd_pipeline(args: argparse.Namespace) -> int:
     symbols = args.symbols or ["0050", "0056", "00878"]
-    result = build_pipeline_result(symbols, args.scenario, args.seed)
+    result = build_pipeline_result(
+        symbols, args.scenario, args.seed, live=getattr(args, "live", False)
+    )
     if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
@@ -210,7 +232,9 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
 
 def cmd_desk(args: argparse.Namespace) -> int:
     symbols = args.symbols or ["0050", "0056", "00878"]
-    result = build_pipeline_result(symbols, args.scenario, args.seed)
+    result = build_pipeline_result(
+        symbols, args.scenario, args.seed, live=getattr(args, "live", False)
+    )
     html_text = render_desk_html(result)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -359,6 +383,9 @@ def main(argv: list[str] | None = None) -> int:
     p_pipe.add_argument("--scenario", default="升息")
     p_pipe.add_argument("--seed", type=int, default=42)
     p_pipe.add_argument("--json", action="store_true", help="emit the structured result as JSON")
+    p_pipe.add_argument(
+        "--live", action="store_true", help="overlay live TWSE/Yahoo data (price + chart series)"
+    )
     p_pipe.set_defaults(func=cmd_pipeline)
 
     p_desk = sub.add_parser(
@@ -368,6 +395,9 @@ def main(argv: list[str] | None = None) -> int:
     p_desk.add_argument("--scenario", default="升息")
     p_desk.add_argument("--seed", type=int, default=42)
     p_desk.add_argument("--out", default="dist/stackfund-desk.html", help="output HTML path")
+    p_desk.add_argument(
+        "--live", action="store_true", help="overlay live TWSE/Yahoo data (price + chart series)"
+    )
     p_desk.set_defaults(func=cmd_desk)
 
     p_journal = sub.add_parser(

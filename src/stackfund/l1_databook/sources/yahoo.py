@@ -48,6 +48,7 @@ def parse_chart_series(payload: dict, symbol: str) -> dict[str, Any] | None:
         "previous_close": meta.get("chartPreviousClose"),
         "currency": meta.get("currency"),
         "n_closes": len(closes),
+        "closes": closes,  # the daily close series itself (for charting)
         "price_5d_return_pct": None,
         "ma20": None,
         "source": "Yahoo:chart-series",
