@@ -74,6 +74,12 @@ def parse_float(value: Any) -> float | None:
         return None
 
 
+def parse_int(value: Any) -> int | None:
+    """Robust int parse (via :func:`parse_float`) — for share counts / balances."""
+    f = parse_float(value)
+    return int(f) if f is not None else None
+
+
 def parse_stock_day_all(rows: list[dict], symbol: str) -> dict[str, Any] | None:
     """Extract one ETF's quote from a STOCK_DAY_ALL payload. Pure (no network)."""
     for row in rows:

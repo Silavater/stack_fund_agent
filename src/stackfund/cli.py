@@ -287,6 +287,25 @@ def cmd_journal(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_signals(args: argparse.Namespace) -> int:
+    """Real Taiwan chips (institutional / margin) + news for one ETF — context only.
+
+    These are *not* decision inputs (the engine decides from the deterministic scorecard);
+    they're surfaced as live market context. All are graceful (None / [] on failure).
+    """
+    from stackfund.l1_databook.sources import chips, news
+
+    sym = args.symbol
+    out = {
+        "symbol": sym,
+        "institutional_netbuy": chips.fetch_institutional_netbuy(sym),
+        "margin": chips.fetch_margin(sym),
+        "news": news.fetch_news(sym, limit=args.n),
+    }
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_crowd(args: argparse.Namespace) -> int:
     book = load_databook_from_fixture(_fixtures_dir() / f"etf_{args.symbol}.json")
     seed = make_seed(book, market_scenario_label=args.scenario, rng_seed=args.seed)
@@ -427,6 +446,13 @@ def main(argv: list[str] | None = None) -> int:
         "--out", default=".hermes-data/research-journal.jsonl", help="journal JSONL path"
     )
     p_journal.set_defaults(func=cmd_journal)
+
+    p_signals = sub.add_parser(
+        "signals", help="real Taiwan chips (institutional / margin) + news for one ETF (context)"
+    )
+    p_signals.add_argument("--symbol", default="0050")
+    p_signals.add_argument("--n", type=int, default=3, help="news headlines to fetch")
+    p_signals.set_defaults(func=cmd_signals)
 
     p_crowd = sub.add_parser("crowd", help="run only the L3 crowd side-rail")
     p_crowd.add_argument("--symbol", default="0056")
