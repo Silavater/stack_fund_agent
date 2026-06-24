@@ -154,6 +154,15 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
     port = portfolio_ledger(run_id, plans)
     exp = experiment_ledger(run_id, parent_run_id="none", rng_seed=seed, scenario_label=scenario)
 
+    market_session = None
+    if live:  # freshness only — what session is the Taipei market in right now
+        try:
+            from stackfund.l1_databook import trading_calendar as tc
+
+            market_session = tc.trading_session_phase()
+        except Exception:  # noqa: BLE001
+            market_session = None
+
     return {
         "meta": {
             "scenario": scenario,
@@ -162,6 +171,7 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
             "formula_version": exp.formula_version,
             "as_of": last_observed,
             "live": live,
+            "market_session": market_session,
         },
         "etfs": etfs,
         "finops": {

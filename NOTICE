@@ -1,0 +1,55 @@
+NOTICE — third-party attribution
+================================
+
+StackFund is MIT-licensed. Portions of the engine's L1 data layer are adapted from
+ST (a Taiwan-stock research/screening app by the same author):
+
+  ST / stock_agent
+  MIT License — Copyright (c) 2026 Chen YuShen
+
+Adapted into StackFund (rewritten to StackFund's package structure, minimal-stdlib
+style, ETF focus, and Core-B firewall — data/utility only, never the decision engine):
+
+  src/stackfund/l1_databook/sources/_http.py
+        — the on-disk HTTP cache + FetchError shape (ST's concurrency/retry machinery
+          intentionally omitted)
+  src/stackfund/l1_databook/sources/twse.py
+        — twse_date_to_iso (ROC + Gregorian) and parse_float helpers
+  src/stackfund/l1_databook/trading_calendar.py
+        — the Taipei trading-day calendar (TWSE holiday API + local cache + env
+          override + weekday-only fallback)
+  src/stackfund/l1_databook/sources/chips.py
+        — institutional net-buy (TWSE T86) + margin (MI_MARGN) signal connectors
+  src/stackfund/l1_databook/sources/news.py
+        — Google News RSS catalyst connector
+
+Only factual data/utility code is reused. StackFund's deterministic decision engine
+(L2 scorecard, L4 portfolio) and the firewalled L3 crowd FACE are StackFund's own.
+
+The skill-level design/reference attribution (AZNitro/tw-stock-agent, same author) is
+in skills/etf-analysis/NOTICE.
+
+--------------------------------------------------------------------------------
+Upstream license (reproduced per MIT terms):
+
+MIT License
+
+Copyright (c) 2026 Chen YuShen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

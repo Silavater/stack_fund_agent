@@ -34,6 +34,46 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
+def twse_date_to_iso(value: Any) -> str | None:
+    """Map a TWSE date — 7-digit ROC (``1150618``) or 8-digit Gregorian (``20260618``) —
+    to ISO. The holiday-schedule feed uses Gregorian, so ``roc_date_to_iso`` alone won't
+    do. Adapted from ST / Chen YuShen's ``stock_agent.utils`` (MIT) — see ``NOTICE``.
+    """
+    if value is None:
+        return None
+    text = str(value).strip().replace("/", "").replace("-", "")
+    if not text:
+        return None
+    try:
+        if len(text) == 7:
+            year, month, day = int(text[:3]) + 1911, int(text[3:5]), int(text[5:7])
+        elif len(text) == 8:
+            year, month, day = int(text[:4]), int(text[4:6]), int(text[6:8])
+        else:
+            return str(value)
+    except ValueError:
+        return str(value)
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def parse_float(value: Any) -> float | None:
+    """Robust float parse (strips commas / ``N/A`` markers / leading non-numerics).
+    Adapted from ST / Chen YuShen's ``stock_agent.utils`` (MIT) — see ``NOTICE``.
+    """
+    import re
+
+    if value is None:
+        return None
+    text = str(value).strip().replace(",", "")
+    if not text or text in {"-", "--", "N/A", "NaN"}:
+        return None
+    text = re.sub(r"^[^\d+\-.]+", "", text)
+    try:
+        return float(text)
+    except (ValueError, TypeError):
+        return None
+
+
 def parse_stock_day_all(rows: list[dict], symbol: str) -> dict[str, Any] | None:
     """Extract one ETF's quote from a STOCK_DAY_ALL payload. Pure (no network)."""
     for row in rows:
