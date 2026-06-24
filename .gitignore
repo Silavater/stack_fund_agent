@@ -34,3 +34,8 @@ Thumbs.db
 
 # Local preview config (holds a machine-specific absolute path)
 .claude/launch.json
+
+# Sibling projects kept locally inside the repo for reference, NOT part of StackFund
+# (ST = Chen YuShen's stock_agent, analysed + selectively ported — see NOTICE).
+ST/
+hermes-src-tmp/
