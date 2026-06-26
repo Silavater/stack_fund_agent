@@ -116,8 +116,14 @@ def desk_html() -> str:
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
 
 
-def ask_agent(message: str) -> dict:
+def ask_agent(message: str, lang: str = "zh") -> dict:
     """Run one agent turn in the container; return {reply} or {error}."""
+    if lang == "en":
+        message = (
+            "[The user is on the English interface — answer ENTIRELY in English, using the "
+            "English section labels (Plain-language takeaway / Why / Details) and the English "
+            "disclaimer.]\n\n" + message
+        )
     inner = (
         ". /opt/hermes/.venv/bin/activate 2>/dev/null; "
         "export HOME=/opt/data HERMES_HOME=/opt/data; "
@@ -390,7 +396,8 @@ class Handler(BaseHTTPRequestHandler):
             if not msg:
                 self._send(400, b'{"error":"empty message"}', "application/json")
                 return
-            out = ask_agent(msg)
+            lang = "en" if self._cookie("lang") == "en" else "zh"
+            out = ask_agent(msg, lang)
             self._send(200, json.dumps(out, ensure_ascii=False).encode("utf-8"), "application/json")
             return
         self._send(404, b"not found", "text/plain")
