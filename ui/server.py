@@ -103,10 +103,10 @@ def _sub_banner(sub_key: str | None, lang: str) -> str:
 def desk_html() -> str:
     """The visual research desk embedded in the site (engine output: rebalance cards +
     candlestick K-lines + the FinOps books + the walled-off crowd), with the shared nav."""
-    from stackfund.cli import build_pipeline_result
+    from stackfund.cli import DEFAULT_SYMBOLS, build_pipeline_result
     from stackfund.report.desk import render_desk_html
 
-    result = build_pipeline_result(["0050", "0056", "006208", "00878", "00919"], "升息", 42)
+    result = build_pipeline_result(DEFAULT_SYMBOLS, "升息", 42)
     return render_desk_html(result, nav="__NAV__")
 
 

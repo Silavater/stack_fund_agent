@@ -47,6 +47,12 @@ from stackfund.ledgers import experiment_ledger, finops_ledger, portfolio_ledger
 from stackfund.report import compose_divergence
 from stackfund.report.desk import render_desk_html
 
+# Default ETF universe for the demo desk/pipeline — broad-market (0050/006208) + dividend
+# (0056/00919) + ESG-dividend (00878) + low-vol dividend (00713) + tech-dividend monthly
+# (00929) + ESG broad (00850): a spread wide enough to compare. Each needs a
+# fixtures/etf_<symbol>.json (override per-command with --symbols).
+DEFAULT_SYMBOLS = ["0050", "0056", "006208", "00878", "00919", "00713", "00929", "00850"]
+
 
 def _fixtures_dir() -> Path:
     override = os.environ.get("STACKFUND_FIXTURES")
@@ -193,7 +199,7 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
 
 
 def cmd_pipeline(args: argparse.Namespace) -> int:
-    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
+    symbols = args.symbols or DEFAULT_SYMBOLS
     result = build_pipeline_result(
         symbols, args.scenario, args.seed, live=getattr(args, "live", False)
     )
@@ -241,7 +247,7 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
 
 
 def cmd_desk(args: argparse.Namespace) -> int:
-    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
+    symbols = args.symbols or DEFAULT_SYMBOLS
     result = build_pipeline_result(
         symbols, args.scenario, args.seed, live=getattr(args, "live", False)
     )
@@ -262,7 +268,7 @@ def cmd_journal(args: argparse.Namespace) -> int:
     """
     import datetime
 
-    symbols = args.symbols or ["0050", "0056", "006208", "00878", "00919"]
+    symbols = args.symbols or DEFAULT_SYMBOLS
     result = build_pipeline_result(symbols, args.scenario, args.seed)
     actions = []
     for e in result["etfs"]:
