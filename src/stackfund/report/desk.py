@@ -53,7 +53,7 @@ body{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;
 .line b{color:var(--tp);font-weight:600}
 .note{font-size:13px;color:var(--ts);margin-top:5px}
 .mono{font-family:var(--mono);font-size:12px;color:var(--ts)}
-.code{color:var(--info-tx);margin-bottom:6px}
+.code{color:var(--info-tx);margin-bottom:6px;overflow-wrap:anywhere}
 .reasons{margin-top:5px}
 .cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .cardhead .t{font-size:13px;font-weight:600;color:var(--ts)}
