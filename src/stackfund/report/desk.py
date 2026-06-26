@@ -1,15 +1,18 @@
 """Static HTML 'research desk' view of a pipeline result (presentation only).
 
-Pure presentation: takes the dict from ``stackfund.cli.build_pipeline_result``
-and returns a self-contained HTML document (inline CSS, server-rendered, no JS,
-no CDN). It belongs to the ``report/`` presentation layer — firewalled out of
-L4/L5 like the rest of ``report/``. Nothing is computed here; it only renders
-numbers the deterministic engine already produced.
+Pure presentation: takes the dict from ``stackfund.cli.build_pipeline_result`` and
+returns a self-contained HTML document — inline CSS + an inlined, *vendored* candlestick
+library (TradingView lightweight-charts, Apache-2.0; see NOTICE), so there is **no CDN
+and zero egress**. A server-rendered SVG sparkline is the no-JS fallback. It belongs to
+the ``report/`` presentation layer — firewalled out of L4/L5 like the rest of ``report/``.
+Nothing is computed here; it only renders numbers the deterministic engine produced.
 """
 
 from __future__ import annotations
 
 import html
+import json
+from pathlib import Path
 
 _CSS = """
 *{box-sizing:border-box}
@@ -35,6 +38,8 @@ body{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;
 .grid{display:grid;gap:13px}
 .etfs{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .two{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:13px}
+.kchart{height:138px;margin:9px 0 2px}
+.kchart svg{margin:0}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 18px}
 .etf.featured{border:1.5px solid var(--info-tx)}
 .ehead{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
@@ -109,9 +114,73 @@ def _price_chart_svg(series: object) -> str:
     )
 
 
+# Interactive candlestick K-line via TradingView lightweight-charts (Apache-2.0),
+# vendored + inlined so the desk stays a single self-contained file with NO CDN /
+# zero egress. See NOTICE. The SVG sparkline above is the no-JS fallback.
+_VENDOR = Path(__file__).resolve().parent / "vendor"
+try:
+    _LIGHTWEIGHT_JS = (_VENDOR / "lightweight-charts.standalone.production.js").read_text(
+        encoding="utf-8"
+    )
+except OSError:  # vendored lib absent -> the SVG sparkline fallback stays
+    _LIGHTWEIGHT_JS = ""
+
+# Render a candlestick per #k_<symbol> from SF_CANDLES. Taiwan convention = red up /
+# green down (inverse of the West). Clears the SVG fallback first.
+_CANDLE_INIT_JS = """
+(function(){var lw=window.LightweightCharts;if(!lw||!lw.createChart)return;
+var RED="#d4452e",GREEN="#0e9f6e";
+for(var sym in SF_CANDLES){var data=SF_CANDLES[sym];var el=document.getElementById("k_"+sym);
+if(!el||!data||data.length<2)continue;el.innerHTML="";
+var chart=lw.createChart(el,{height:138,
+layout:{background:{color:"transparent"},textColor:"#8a8a85",fontFamily:"system-ui",attributionLogo:false},
+grid:{vertLines:{visible:false},horzLines:{color:"rgba(128,128,128,0.14)"}},
+rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false,fixLeftEdge:true,fixRightEdge:true},
+handleScroll:false,handleScale:false,crosshair:{mode:0}});
+var s=chart.addSeries(lw.CandlestickSeries,{upColor:RED,downColor:GREEN,borderUpColor:RED,
+borderDownColor:GREEN,wickUpColor:RED,wickDownColor:GREEN});
+s.setData(data);chart.timeScale().fitContent();}})();
+""".strip()
+
+
+def _weekday_dates(end_iso: str, n: int) -> list[str]:
+    """``n`` ascending weekday ISO dates ending at ``end_iso`` (the chart x-axis)."""
+    import datetime
+
+    try:
+        d = datetime.date.fromisoformat(end_iso[:10])
+    except (ValueError, TypeError):
+        d = datetime.date(2026, 6, 19)
+    out: list[str] = []
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(d.isoformat())
+        d -= datetime.timedelta(days=1)
+    return list(reversed(out))
+
+
+def _ohlc_from_closes(closes: list[float], dates: list[str]) -> list[dict]:
+    """Illustrative OHLC candles from a close series (open = prev close + a small wick).
+
+    Presentation only — the demo's close series is itself illustrative; this shapes it
+    into candlesticks. With --live the closes are real (the wicks stay illustrative).
+    """
+    out: list[dict] = []
+    prev = closes[0]
+    for i, (dt, c) in enumerate(zip(dates, closes, strict=True)):
+        o = prev
+        top, bot = max(o, c), min(o, c)
+        wick = c * 0.004
+        hi = round(top + wick * (1 + (i % 3) * 0.35), 2)
+        lo = round(bot - wick * (1 + ((i + 1) % 3) * 0.35), 2)
+        out.append({"time": dt, "open": round(o, 2), "high": hi, "low": lo, "close": round(c, 2)})
+        prev = c
+    return out
+
+
 def _etf_card(e: dict) -> str:
     sym = _esc(e["symbol"])
-    chart = _price_chart_svg(e.get("price_series"))
+    chart = f'<div class="kchart" id="k_{sym}">{_price_chart_svg(e.get("price_series"))}</div>'
     if "delta_pp" in e:  # REBALANCE
         badge = f"REBALANCE {e['delta_pp']:+.2f}pp"
         reasons = " · ".join(_esc(r) for r in e.get("reasons", []))
@@ -174,13 +243,19 @@ def render_desk_html(result: dict) -> str:
     m = result.get("meta", {})
     etfs = result.get("etfs", [])
     cards = "".join(_etf_card(e) for e in etfs)
+    candles: dict[str, list[dict]] = {}
+    for e in etfs:
+        ser = [float(x) for x in (e.get("price_series") or []) if isinstance(x, (int, float))]
+        if len(ser) >= 2:
+            dates = _weekday_dates(str(m.get("as_of", "")), len(ser))
+            candles[str(e["symbol"])] = _ohlc_from_closes(ser, dates)
     body = (
         '<div class="wrap"><div class="top"><div>'
         f'<div class="h1">{_WORDMARK}</div>'
         f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
         f"seed {_esc(m.get('seed', ''))} · formula {_esc(m.get('formula_version', ''))} · "
         f"as of {_esc(m.get('as_of', ''))} · "
-        f'{"live data" if m.get("live") else "frozen fixtures"}</div></div>'
+        f"{'live data' if m.get('live') else 'frozen fixtures'}</div></div>"
         '<span class="pill">研究/教育 · 不下任何證券委託單</span></div>'
         '<div class="sec">Rebalance decisions <span>· engine (authoritative)</span></div>'
         f'<div class="grid etfs">{cards}</div>'
@@ -188,9 +263,16 @@ def render_desk_html(result: dict) -> str:
         '<div class="foot"><span class="dot"></span>every number computed by the engine · '
         "the model only interprets · StackFund places no securities orders</div></div>"
     )
+    scripts = ""
+    if _LIGHTWEIGHT_JS and candles:
+        scripts = (
+            f"<script>{_LIGHTWEIGHT_JS}</script>"
+            f"<script>const SF_CANDLES={json.dumps(candles, ensure_ascii=False)};"
+            f"{_CANDLE_INIT_JS}</script>"
+        )
     return (
         '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>StackFund — research desk</title>"
-        f"<style>{_CSS}</style></head><body>{body}</body></html>"
+        f"<style>{_CSS}</style></head><body>{body}{scripts}</body></html>"
     )

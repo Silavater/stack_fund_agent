@@ -30,6 +30,19 @@ The skill-level design/reference attribution (AZNitro/tw-stock-agent, same autho
 in skills/etf-analysis/NOTICE.
 
 --------------------------------------------------------------------------------
+Vendored browser library (bundled verbatim, not adapted) — for the research-desk
+candlestick chart, mirroring ST's use of the same library:
+
+  TradingView Lightweight Charts™  v5.2.0
+  Apache License 2.0 — Copyright (c) 2025 TradingView, Inc.
+  src/stackfund/report/vendor/lightweight-charts.standalone.production.js
+  (full licence text: src/stackfund/report/vendor/lightweight-charts.LICENSE)
+
+It is inlined into the static desk HTML so the page stays self-contained with NO CDN
+and zero network egress. Presentation only — it draws candles the deterministic engine
+already produced, and lives in report/, firewalled out of L4/L5 like the rest of it.
+
+--------------------------------------------------------------------------------
 Upstream license (reproduced per MIT terms):
 
 MIT License

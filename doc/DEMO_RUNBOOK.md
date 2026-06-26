@@ -19,7 +19,7 @@ rm -f .hermes-data/research-journal.jsonl
 uv run python -m stackfund journal --date 2026-06-09 --scenario 升息
 uv run python -m stackfund journal --date 2026-06-16 --scenario 0056_cut
 uv run python -m stackfund journal --date 2026-06-23 --scenario 電子權值回檔
-uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF cards + charts)
+uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF cards + candlestick K-lines)
 ```
 
 **Open these tabs/windows before you hit record:**
@@ -54,7 +54,8 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF 
 **Scene 3 — Discipline + the gate (18s)**
 - DO: show 0050 **NO_ACTION** (on the desk or pipeline), then in the terminal run
   **`uv run python -m stackfund pipeline --symbols 00631L`**.
-- SCREEN: `00631L → NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`.
+- SCREEN: `00631L → NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`. (On the desk, each ETF card
+  carries an interactive **candlestick K-line** — Taiwan red-up / green-down — for market context only.)
 - SAY: *"It doesn't just say buy. For 0050 it returns no-action — the trade isn't worth the cost. And ask it about a leveraged ETF? It refuses — ineligible, by design. It rejects what doesn't meet the standard."*
 
 **Scene 4 — Firewall (16s)**
@@ -82,7 +83,7 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF 
 
 ### Optional bonus beats (if you have a few seconds)
 - **Real market context:** `uv run python -m stackfund signals --symbol 0050` → live institutional net-buy / margin / news.
-- **Live charts:** `uv run python -m stackfund desk --live` → the price chart follows real prices (header reads "live data").
+- **Live charts:** `uv run python -m stackfund desk --live` → the candlestick K-lines follow real prices (header reads "live data").
 - **Bilingual:** flip the **EN / 中** toggle in the nav on camera.
 
 ---
