@@ -97,7 +97,10 @@ def _sub_banner(sub_key: str | None, lang: str) -> str:
     if not t or t["amount"] == 0:
         return ""
     s = STR[lang]
-    return f'<a href="/" class="subbanner">✓ {s["SUBBED"]} {t["name"]} · {s["ENTER_DESK"]}</a>'
+    return (
+        f'<a href="/" class="subbanner">✓ {s["SUBBED"]} {t["name"]} · {s["ENTER_DESK"]}</a>'
+        f'<a href="/signout" class="signout">{s["SIGNOUT"]}</a>'
+    )
 
 
 def desk_html() -> str:
@@ -345,6 +348,11 @@ class Handler(BaseHTTPRequestHandler):
             self._html(finops_html(), "finops", lang, setc)
         elif p.path == "/journal":
             self._html(journal_html(), "journal", lang, setc)
+        elif p.path == "/signout":  # clear the demo subscription cookie -> fresh state
+            self.send_response(302)
+            self.send_header("Location", "/pricing")
+            self.send_header("Set-Cookie", "sf_tier=; Path=/; Max-Age=0; SameSite=Lax")
+            self.end_headers()
         elif p.path == "/healthz":
             self._send(200, b"ok", "text/plain")
         else:
@@ -425,6 +433,7 @@ STR = {
         "MODE_STUB": "stub(無 Stripe key)· 已解鎖",
         "ENTER_DESK": "進入研究台 →",
         "SUBBED": "你已訂閱",
+        "SIGNOUT": "登出",
         "DISCLAIMER": "研究/教育 · 非個別化投資建議 · 全程不下任何證券委託單",
         "TITLE_FAIL": "未付款",
         "NO_PAYMENT": "找不到已完成的付款。",
@@ -511,6 +520,7 @@ STR = {
         "MODE_STUB": "stub (no Stripe key) · unlocked",
         "ENTER_DESK": "Enter the desk →",
         "SUBBED": "You're subscribed to",
+        "SIGNOUT": "Sign out",
         "DISCLAIMER": "Research / education · not individual investment advice · never places any securities order",
         "TITLE_FAIL": "Not paid",
         "NO_PAYMENT": "No completed payment found.",
@@ -600,7 +610,9 @@ button{{width:100%;margin-top:14px;font-size:15px;padding:11px;border-radius:11p
 button.ghost{{background:transparent;border:1px solid var(--bd);color:var(--tp)}}
 .note{{font-size:12px;color:var(--tt);margin-top:24px}}
 .subbanner{{display:inline-block;text-decoration:none;background:var(--card);color:var(--ok);border:1px solid var(--ok);border-radius:11px;padding:9px 14px;font-size:14px;font-weight:500;margin:0 0 20px}}
-.subbanner:hover{{background:var(--bd2)}}</style></head><body>__NAV__
+.subbanner:hover{{background:var(--bd2)}}
+.signout{{display:inline-block;margin-left:9px;color:var(--ts);font-size:13px;text-decoration:none;vertical-align:middle}}
+.signout:hover{{color:var(--tp);text-decoration:underline}}</style></head><body>__NAV__
 <div class="wrap" role="main"><h1 class="h1" style="margin:0">__T_CHOOSE_PLAN__</h1>
 <div class="sub">__T_PRICING_SUB__</div>
 __SUBBANNER__
