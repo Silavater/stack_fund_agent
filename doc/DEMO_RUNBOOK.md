@@ -45,9 +45,10 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (8 ETF 
 - DO: open `/pricing` → click **訂閱 Pro ($20)** → on Stripe Checkout type card **4242 4242 4242 4242**, any future expiry, any CVC → **Pay** → lands on `/success` → click back to `/pricing`.
 - SCREEN: Stripe hosted checkout → "已解鎖 Pro" → a **✓ 已訂閱** banner on /pricing.
 - SAY: *"A stranger subscribes to the Pro plan — twenty dollars, a real Stripe charge in test mode. They check out, the desk unlocks, and a subscribed badge appears. No one on our side lifted a finger."*
+- TIP: the chat is **paywalled** — before subscribing, clicking **Chat** shows a 🔒 "subscribe to unlock" card (free tier = the public Board summary only). Showing that lock *first* makes the unlock land harder. Reset to the clean unsubscribed state anytime with **`/signout`**.
 
 **Scene 2 — Use / research (22s)**
-- DO: click **進入研究台 →** (or go to `/`) → type **`研究 0056,給再平衡決策`** → send → wait (~15–25s, the loader cycles 呼叫 agent → 跑引擎 → 整理結論).
+- DO: now-unlocked, go to **Chat** (`/`) → type **`研究 0056,給再平衡決策`** → send → wait (~15–25s, the loader cycles 呼叫 agent → 跑引擎 → 整理結論).
 - SCREEN: the reply — plain-language takeaway, then **0056 REBALANCE +5.00pp / target 37.4% / benefit 81bps > cost 19bps**.
 - SAY: *"They ask it to research 0056. Every number here is computed by a deterministic engine — not the language model. It recommends a five-point rebalance to a thirty-seven-percent target, because the expected benefit beats the trading cost. The model only explains; the engine decides."*
 

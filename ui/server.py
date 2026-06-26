@@ -312,6 +312,11 @@ class Handler(BaseHTTPRequestHandler):
                 return part[len(name) + 1 :]
         return None
 
+    def _subscribed(self) -> bool:
+        """True if the browser carries a paid sf_tier cookie (set on /success)."""
+        t = TIERS.get(self._cookie("sf_tier") or "")
+        return bool(t and t.get("amount", 0) > 0)
+
     def _pick_lang(self) -> tuple[str, bool]:
         """(lang, should_set_cookie). ?lang= wins + persists via cookie; default zh."""
         q = (parse_qs(urlparse(self.path).query).get("lang") or [None])[0]
@@ -336,7 +341,8 @@ class Handler(BaseHTTPRequestHandler):
         p = urlparse(self.path)
         lang, setc = self._pick_lang()
         if p.path in ("/", "/index.html"):
-            self._html(INDEX_HTML, "chat", lang, setc)
+            page = INDEX_HTML if self._subscribed() else LOCKED_CHAT_HTML
+            self._html(page, "chat", lang, setc)
         elif p.path == "/pricing":
             html = PRICING_HTML.replace("__SUBBANNER__", _sub_banner(self._cookie("sf_tier"), lang))
             self._html(html, "pricing", lang, setc)
@@ -371,6 +377,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(out, ensure_ascii=False).encode("utf-8"), "application/json")
             return
         if self.path == "/api/chat":
+            if not self._subscribed():
+                self._send(
+                    402,
+                    json.dumps({"error": "subscribe to unlock"}, ensure_ascii=False).encode(
+                        "utf-8"
+                    ),
+                    "application/json",
+                )
+                return
             msg = str(payload.get("message", "")).strip()
             if not msg:
                 self._send(400, b'{"error":"empty message"}', "application/json")
@@ -434,6 +449,9 @@ STR = {
         "ENTER_DESK": "進入研究台 →",
         "SUBBED": "你已訂閱",
         "SIGNOUT": "登出",
+        "LOCK_TITLE": "訂閱後解鎖研究對話",
+        "LOCK_BODY": "免費方案可看公開的「看板」研究摘要。要和會自己跑確定性引擎的 agent 對話、請它給再平衡決策,需訂閱 Pro。",
+        "LOCK_CTA": "查看方案 →",
         "DISCLAIMER": "研究/教育 · 非個別化投資建議 · 全程不下任何證券委託單",
         "TITLE_FAIL": "未付款",
         "NO_PAYMENT": "找不到已完成的付款。",
@@ -521,6 +539,9 @@ STR = {
         "ENTER_DESK": "Enter the desk →",
         "SUBBED": "You're subscribed to",
         "SIGNOUT": "Sign out",
+        "LOCK_TITLE": "Subscribe to unlock the research chat",
+        "LOCK_BODY": "The free plan shows the public Board research summary. Chatting with the agent that runs the deterministic engine — and asking it for a rebalance decision — needs a Pro subscription.",
+        "LOCK_CTA": "See plans →",
         "DISCLAIMER": "Research / education · not individual investment advice · never places any securities order",
         "TITLE_FAIL": "Not paid",
         "NO_PAYMENT": "No completed payment found.",
@@ -738,6 +759,32 @@ body{{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:
 __ROWS__
 <div class="cap">__T_JOURNAL_FOOT__</div>
 </div></body></html>"""
+
+LOCKED_CHAT_HTML = (
+    """<!DOCTYPE html><html lang="__HTMLLANG__"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__T_TITLE_CHAT__</title>
+<style>"""
+    + _CSS
+    + """
+.lockwrap{max-width:560px;margin:11vh auto 0;padding:0 20px;text-align:center}
+.lockcard{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:36px 28px}
+.lockcard .ico{font-size:32px;line-height:1}
+.lockcard h1{font-size:20px;margin:14px 0 8px}
+.lockcard p{color:var(--ts);font-size:14px;margin:0 auto 22px;line-height:1.65;max-width:42ch}
+.lockcard a.cta{display:inline-block;background:var(--u-bg);color:var(--u-tx);text-decoration:none;padding:11px 22px;border-radius:11px;font-weight:500}
+.lockcard a.cta:hover{opacity:.92}
+.lockcard .dis{margin-top:24px;font-size:11px;color:var(--tt)}
+</style></head><body>__NAV__
+<div class="lockwrap"><div class="lockcard">
+<div class="ico">🔒</div>
+<h1>__T_LOCK_TITLE__</h1>
+<p>__T_LOCK_BODY__</p>
+<a class="cta" href="/pricing">__T_LOCK_CTA__</a>
+<div class="dis">__T_DISCLAIMER__</div>
+</div></div></body></html>"""
+)
+
 
 INDEX_HTML = (
     """<!DOCTYPE html><html lang="__HTMLLANG__"><head><meta charset="utf-8">
