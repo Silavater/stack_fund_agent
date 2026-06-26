@@ -73,6 +73,21 @@ def test_eligibility_gate_blocks_leveraged():
     assert INELIGIBLE in plan.reason_codes
 
 
+def test_eligibility_accepts_live_freshness():
+    # Regression: "live" is the *freshest* state but was missing from the gate's
+    # accept-list, so every ETF under --live failed as STALE_OR_MISSING. Live + frozen
+    # (complete data) must pass; "partial"/unknown stays stale.
+    eligible, reasons = eligibility_gate(
+        build_databook("0056", {"yield": 8.5}, "2026-06-25", freshness="live")
+    )
+    assert "STALE_OR_MISSING" not in reasons
+    assert eligible is True
+    _, partial = eligibility_gate(
+        build_databook("0056", {"yield": 8.5}, "2026-06-25", freshness="partial")
+    )
+    assert "STALE_OR_MISSING" in partial
+
+
 def test_0050_blocked_by_cost_gate():
     # weak conviction but far underweight -> expected benefit below transaction cost
     plan = build_rebalance_plan(_full_state("0050"))

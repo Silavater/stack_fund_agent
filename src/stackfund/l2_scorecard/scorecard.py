@@ -18,7 +18,10 @@ def eligibility_gate(book: DataBook) -> tuple[bool, tuple[str, ...]]:
     """Return (eligible, reason_codes). Reasons are empty when eligible."""
     reasons: list[str] = []
     m = book.metrics
-    if book.freshness not in ("fresh", "frozen"):
+    # Accept the complete-data states: frozen fixtures + live feeds (both fully populated).
+    # "partial" (and anything unknown) is treated as stale. NB: "live" is the *freshest*
+    # state — omitting it here silently failed every ETF under --live (STALE_OR_MISSING).
+    if book.freshness not in ("fresh", "frozen", "live"):
         reasons.append("STALE_OR_MISSING")
     if m.get("leveraged_or_inverse", 0.0) >= 1.0:
         reasons.append("LEVERAGED_OR_INVERSE")
