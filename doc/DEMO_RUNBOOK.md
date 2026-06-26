@@ -77,8 +77,10 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (8 ETF 
 - SAY: *"And it doesn't wait to be asked. It researches on a schedule, every week, and keeps a journal of every decision. It operates continuously."*
 
 **Scene 7 — Locked down (10s)**
-- DO: open `policy/openshell.yaml` + `docker/compose.yml` (the egress allowlist).
-- SAY: *"It all runs locked down — default-deny egress, an allowlist of only Stripe and the model host, secrets injected at the proxy, never in the image."*
+- DO: open `policy/openshell.yaml` · `policy/nemoclaw-blueprint.yaml` · `docker/compose.yml` — the
+  **designed** security model (egress allowlist + sandbox spec). Show it as the *design*; don't claim
+  it's running on this Windows box (OpenShell/NemoClaw need a Linux substrate — see `policy/README.md`).
+- SAY: *"The whole thing is built to run locked down — default-deny egress, allowlisted to only Stripe and the model host, under OpenShell and NemoClaw. Here's the policy. And verifiably in the repo: secrets never touch the image."*
 
 **Scene 8 — Money shot (14s)**
 - DO: split-screen — the paid receipt · the REBALANCE (desk) · the REFUSED (finops).

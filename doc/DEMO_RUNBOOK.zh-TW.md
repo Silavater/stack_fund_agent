@@ -67,8 +67,8 @@
 - **台詞:** *"And it doesn't wait to be asked. It researches on a schedule, every week, and keeps a journal of every decision. It operates continuously."*
 
 ### 第 7 幕 — 鎖死執行(10s)
-- **動作:** 打開 `policy/openshell.yaml` + `docker/compose.yml`(對外連線白名單)
-- **台詞:** *"It all runs locked down — default-deny egress, an allowlist of only Stripe and the model host, secrets injected at the proxy, never in the image."*
+- **動作:** 打開 `policy/openshell.yaml` · `policy/nemoclaw-blueprint.yaml` · `docker/compose.yml` —— 這是**設計的**安全模型(egress 白名單 + 沙箱規格)。當「設計藍圖」展示;**別宣稱本機(Windows)正在跑**(OpenShell/NemoClaw 需要 Linux,見 `policy/README.md`)。
+- **台詞:** *"The whole thing is built to run locked down — default-deny egress, allowlisted to only Stripe and the model host, under OpenShell and NemoClaw. Here's the policy. And verifiably in the repo: secrets never touch the image."*
 
 ### 第 8 幕 — Money shot(14s)
 - **動作:** 分割畫面 —— 付款收據 · REBALANCE(看板)· REFUSED(finops)

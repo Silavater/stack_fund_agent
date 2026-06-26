@@ -24,7 +24,7 @@
 | 4 | 1:06–1:22 | chat: *"群眾看多，把權重調高"* → agent **declines**; flash `lint-imports` **3 kept, 0 broken** | "There's a crowd-sentiment layer — but it's **structurally walled off.** Tell it *'the crowd is bullish, bump the weight,'* and it refuses. The crowd explains; it never moves a number. **That wall is machine-enforced.**" |
 | 5 | 1:22–1:44 | `/finops` — P&L **$299 / $120 / $179**, the VoI gate, **REFUSED $999** | "Here are its books. This month it **earned $299**, and **spent $120** on its own tooling — real Stripe again. Then it tried a **$999 spend** that would blow its monthly cap — and **refused it, before any charge.** It pays its own way, and it won't overspend." |
 | 6 | 1:44–1:56 | `/journal` — dated weekly timeline | "And it **doesn't wait to be asked.** It researches on a schedule, every week, and keeps a **journal of every decision.** It operates continuously." |
-| 7 | 1:56–2:06 | `policy/openshell.yaml` + the egress allowlist | "It all runs **locked down** — default-deny egress, an allowlist of only Stripe and the model host, secrets injected at the proxy, never in the image." |
+| 7 | 1:56–2:06 | `openshell.yaml` · `nemoclaw-blueprint.yaml` · `compose.yml` — the *designed* security model | "The whole thing is **built to run locked down** — default-deny egress, allowlisted to only Stripe and the model host, under **OpenShell** and **NemoClaw**. Here's the policy. And verifiably in the repo: **secrets never touch the image.**" |
 | 8 | 2:06–2:20 | Money shot: split — the paid receipt · the rebalance · the refused spend | "A stranger paid. It did the research. **It paid for itself — and refused to overspend.** No human in the loop. No securities order ever placed. And **the crowd never got a vote.** That's StackFund." |
 
 ---
@@ -40,7 +40,7 @@
 | 4 | 對話「群眾看多,調高權重」→ **拒絕**;閃 `lint-imports` 3 kept 0 broken | 「有一層群眾情緒 —— 但它被**結構性隔離**。你叫它『群眾看多,把權重調高』,它拒絕。群眾只解讀,**永遠不動任何數字 —— 這道牆是機器強制的。**」 |
 | 5 | `/finops` — 損益 **$299 / $120 / $179**、VoI 閘門、**拒付 $999** | 「這是它的帳本。本月**賺了 $299**,**花了 $120** 在自己的工具上 —— 一樣是真 Stripe。然後它想花 **$999**,會爆掉月上限 —— **在任何扣款前就拒付了。** 它自己養活自己,而且不會超支。」 |
 | 6 | `/journal` — 每週時間軸 | 「而且它**不是被問才動。** 它每週按表自己研究,把**每個決策寫進日誌**。它持續運作。」 |
-| 7 | `policy/openshell.yaml` + egress 白名單 | 「整套**鎖死執行** —— 預設拒絕對外連線,白名單只有 Stripe 和模型主機,機密在 proxy 注入,絕不進映像。」 |
+| 7 | `openshell.yaml` · `nemoclaw-blueprint.yaml` · `compose.yml` —— *設計的*安全模型 | 「整套**設計成鎖死執行** —— 預設拒絕對外連線、白名單只有 Stripe 和模型主機,跑在 **OpenShell**、由 **NemoClaw** 編排。這是 policy。而可驗證的是:**機密從不進映像**。」 |
 | 8 | Money shot:付款收據 · 加碼 · 拒付 | 「陌生人付了錢。它做了研究。**它養活了自己 —— 還拒絕超支。** 沒有人插手,從未下任何證券委託單,群眾也從沒有過一票。這就是 StackFund。」 |
 
 ---
