@@ -1,6 +1,6 @@
 # StackFund — demo video narration script (~2:20)
 
-> Ready-to-record. Numbers match the current build (USD pricing, 5 ETFs, the live
+> Ready-to-record. Numbers match the current build (USD pricing, 8 ETFs, the live
 > data, the eligibility gate). EN narration is primary (Hermes / NVIDIA / Stripe is an
 > international audience); a 中文 version follows. Pair each line with the on-screen cue.
 >

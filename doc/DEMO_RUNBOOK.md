@@ -19,7 +19,7 @@ rm -f .hermes-data/research-journal.jsonl
 uv run python -m stackfund journal --date 2026-06-09 --scenario 升息
 uv run python -m stackfund journal --date 2026-06-16 --scenario 0056_cut
 uv run python -m stackfund journal --date 2026-06-23 --scenario 電子權值回檔
-uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF cards + candlestick K-lines)
+uv run python -m stackfund desk            # -> dist/stackfund-desk.html (8 ETF cards + candlestick K-lines)
 ```
 
 **Open these tabs/windows before you hit record:**
@@ -70,7 +70,7 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF 
 
 **Scene 6 — Long-term (12s)**
 - DO: open **`/journal`**.
-- SCREEN: a dated weekly timeline (5 ETFs per week).
+- SCREEN: a dated weekly timeline (8 ETFs per week).
 - SAY: *"And it doesn't wait to be asked. It researches on a schedule, every week, and keeps a journal of every decision. It operates continuously."*
 
 **Scene 7 — Locked down (10s)**
