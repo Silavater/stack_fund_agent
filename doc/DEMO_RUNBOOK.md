@@ -23,7 +23,7 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (5 ETF 
 ```
 
 **Open these tabs/windows before you hit record:**
-- Browser: `http://localhost:5757/pricing` · `dist/stackfund-desk.html`
+- Browser: `http://localhost:5757/pricing` · `http://localhost:5757/desk` (the **看板 / Board** tab — candlestick K-lines, all in-site)
 - A terminal (for the command flashes)
 - (optional) Stripe **test** dashboard `dashboard.stripe.com/test/payments` for the receipt
 

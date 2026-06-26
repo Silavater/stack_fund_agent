@@ -71,6 +71,17 @@ body{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;
 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok-tx);flex:none}
 """.strip()
 
+# Injected only when the desk is embedded in the web app (render_desk_html(..., nav=...)).
+# Styles the shared site nav using the desk's own theme vars, so it adapts light/dark.
+_NAV_CSS = """
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;max-width:940px;margin:0 auto;padding:12px 20px;border-bottom:1px solid var(--bd)}
+.nav a{text-decoration:none}.navlinks{display:flex;gap:2px;align-items:center}
+.navlink{font-size:13px;color:var(--ts);padding:6px 11px;border-radius:8px}
+.navlink:hover{background:var(--hold-bg);color:var(--tp)}
+.navlink.on{color:var(--tp);font-weight:500;background:var(--hold-bg)}
+.navlink.tog{border:1px solid var(--bd);font-weight:500}
+""".strip()
+
 
 def _esc(x: object) -> str:
     return html.escape(str(x))
@@ -239,10 +250,12 @@ def _finops(f: dict) -> str:
     )
 
 
-def render_desk_html(result: dict) -> str:
+def render_desk_html(result: dict, nav: str = "") -> str:
     m = result.get("meta", {})
     etfs = result.get("etfs", [])
     cards = "".join(_etf_card(e) for e in etfs)
+    # Embedded in the web app, the shared nav carries the brand -> use a plain page title.
+    h1 = _WORDMARK if not nav else '<span style="font-weight:600">研究看板 · Research desk</span>'
     candles: dict[str, list[dict]] = {}
     for e in etfs:
         ser = [float(x) for x in (e.get("price_series") or []) if isinstance(x, (int, float))]
@@ -251,7 +264,7 @@ def render_desk_html(result: dict) -> str:
             candles[str(e["symbol"])] = _ohlc_from_closes(ser, dates)
     body = (
         '<div class="wrap"><div class="top"><div>'
-        f'<div class="h1">{_WORDMARK}</div>'
+        f'<div class="h1">{h1}</div>'
         f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
         f"seed {_esc(m.get('seed', ''))} · formula {_esc(m.get('formula_version', ''))} · "
         f"as of {_esc(m.get('as_of', ''))} · "
@@ -270,9 +283,10 @@ def render_desk_html(result: dict) -> str:
             f"<script>const SF_CANDLES={json.dumps(candles, ensure_ascii=False)};"
             f"{_CANDLE_INIT_JS}</script>"
         )
+    css = _CSS if not nav else f"{_CSS}\n{_NAV_CSS}"
     return (
         '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>StackFund — research desk</title>"
-        f"<style>{_CSS}</style></head><body>{body}{scripts}</body></html>"
+        f"<style>{css}</style></head><body>{nav}{body}{scripts}</body></html>"
     )

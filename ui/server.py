@@ -70,6 +70,7 @@ def _nav(active: str = "", lang: str = "zh") -> str:
     items = (
         ("/pricing", s["NAV_PRICING"], "pricing"),
         ("/", s["NAV_CHAT"], "chat"),
+        ("/desk", s["NAV_DESK"], "desk"),
         ("/finops", s["NAV_FINOPS"], "finops"),
         ("/journal", s["NAV_JOURNAL"], "journal"),
     )
@@ -97,6 +98,16 @@ def _sub_banner(sub_key: str | None, lang: str) -> str:
         return ""
     s = STR[lang]
     return f'<a href="/" class="subbanner">✓ {s["SUBBED"]} {t["name"]} · {s["ENTER_DESK"]}</a>'
+
+
+def desk_html() -> str:
+    """The visual research desk embedded in the site (engine output: rebalance cards +
+    candlestick K-lines + the FinOps books + the walled-off crowd), with the shared nav."""
+    from stackfund.cli import build_pipeline_result
+    from stackfund.report.desk import render_desk_html
+
+    result = build_pipeline_result(["0050", "0056", "006208", "00878", "00919"], "升息", 42)
+    return render_desk_html(result, nav="__NAV__")
 
 
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
@@ -328,6 +339,8 @@ class Handler(BaseHTTPRequestHandler):
             self._html(html, "pricing", lang, setc)
         elif p.path == "/success":
             self._html(success_html(parse_qs(p.query)), "", lang, setc)
+        elif p.path == "/desk":
+            self._html(desk_html(), "desk", lang, setc)
         elif p.path == "/finops":
             self._html(finops_html(), "finops", lang, setc)
         elif p.path == "/journal":
@@ -388,6 +401,7 @@ STR = {
     "zh": {
         "NAV_PRICING": "訂閱",
         "NAV_CHAT": "對話",
+        "NAV_DESK": "看板",
         "NAV_FINOPS": "帳本",
         "NAV_JOURNAL": "日誌",
         "TITLE_PRICING": "StackFund — 訂閱",
@@ -473,6 +487,7 @@ STR = {
     "en": {
         "NAV_PRICING": "Plans",
         "NAV_CHAT": "Chat",
+        "NAV_DESK": "Board",
         "NAV_FINOPS": "FinOps",
         "NAV_JOURNAL": "Journal",
         "TITLE_PRICING": "StackFund — Plans",
