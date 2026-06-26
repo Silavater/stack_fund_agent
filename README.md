@@ -145,11 +145,21 @@ This is the dockerization + engine scaffold. Confirmed and baked in:
 - **Stripe: use a sandbox** (`stripe sandbox create`) for isolated TEST keys
   (`rk_test_…`), injected at runtime via compose secrets — never baked into the image.
 
-Still to verify before locking the demo:
-1. **Stripe spend path on Windows** — Hermes' Stripe Link CLI is Linux/macOS +
-   US-account only → run under WSL2, or do spend via the Stripe agent-toolkit/Issuing.
-2. **Deliverable** — the required artifact is a **1–3 min demo video**
-   (tweet @NousResearch + Discord). Confirm the deadline on the official channel.
+## Demo mode — what's real vs. illustrative (read before judging)
+- **Earn = real Stripe (TEST mode).** Subscribing on `/pricing` runs a real Stripe TEST
+  Checkout (`cs_…/pi_…`, card `4242 4242 4242 4242`). This is the live money path.
+- **Spend = the FinOps *logic* is real; autonomous execution is deferred.** The
+  earn / spend / refused-spend ledger and the monthly-cap **refusal** (`$999 > headroom 380`)
+  are computed and unit-tested. The agent *placing* a real Stripe spend is gated to Linux/US
+  (Hermes' Stripe Link CLI), so it is not run on this Windows dev box — by design, not a gap.
+- **Market data:** with `--live`, **price + volume are live** (TWSE + Yahoo); **ETF
+  fundamentals are reference / fixture data** (the SITCA NAV scraper is a documented seam,
+  not a shipped scraper). The default demo is **frozen** (real-but-fixed prices) and fully
+  deterministic; `--live` is opt-in.
+- **Securities orders: none, ever.** Every `RebalancePlan` is an illustrative research
+  allocation — there is no order path.
+
+**Deliverable:** a 1–3 min demo video (post to @NousResearch + the Nous Discord).
 
 ## Licence
 MIT. The crowd-scenario engine is a clean-room distillation (idea only) — see

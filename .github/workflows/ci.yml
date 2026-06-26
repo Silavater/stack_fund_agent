@@ -55,6 +55,14 @@ jobs:
       - name: Smoke-test the image (zero network)
         run: docker run --rm --network none stackfund-core:${{ github.sha }} pipeline
 
+      - name: Agent image is digest-pinned (reproducible delivery)
+        # The agent base (nousresearch/hermes-agent, ~5.3 GB) is too heavy to build on
+        # every CI run; instead guard that its base stays pinned by digest, so the
+        # submission build is reproducible and can't silently drift on `latest`.
+        run: |
+          grep -qE '^FROM .+@sha256:[0-9a-f]{64}' docker/Dockerfile.agent \
+            || { echo "::error file=docker/Dockerfile.agent::agent base image is not digest-pinned"; exit 1; }
+
       # --- Optional: Trivy image scan -------------------------------------
       # SECURITY: after the 2026-03-19 trivy-action supply-chain compromise, pin
       # third-party Actions by FULL commit SHA. Resolve once, then uncomment:

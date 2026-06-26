@@ -5,12 +5,11 @@
 # This image is what OpenShell/NemoClaw launches as a sandbox (OpenShell runs
 # agents INSIDE OCI/Docker containers — it does not replace Docker).
 #
-# NOTE: the base image name is per the Nous docs. Before relying on it for a
-# submission, confirm the registry/tag:
-#     docker pull nousresearch/hermes-agent:latest
-# (Docker Hub vs GHCR was not 100% confirmed in research.)
+# Base: the official Hermes Agent image (Docker Hub, ~5.3 GB; boots the gateway
+# under s6). Pinned by digest for a reproducible submission build. Refresh with:
+#   docker pull nousresearch/hermes-agent:latest && docker images --digests nousresearch/hermes-agent
 # ---------------------------------------------------------------------------
-FROM nousresearch/hermes-agent:latest
+FROM nousresearch/hermes-agent:latest@sha256:71b4ffb4683bf843a9523d6189caeab2221211401384eaff17421cb6244f57b4
 
 # --- StackFund deterministic engine (skills shell out to `python -m stackfund`) ---
 COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/

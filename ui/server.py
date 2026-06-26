@@ -343,6 +343,25 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_HEAD(self):
+        # Health probes / platform checks often use HEAD; mirror do_GET's status, no body.
+        path = urlparse(self.path).path
+        known = path in (
+            "/",
+            "/index.html",
+            "/pricing",
+            "/success",
+            "/desk",
+            "/finops",
+            "/journal",
+            "/healthz",
+        )
+        self.send_response(200 if known else 404)
+        self.send_header(
+            "Content-Type", "text/plain" if path == "/healthz" else "text/html; charset=utf-8"
+        )
+        self.end_headers()
+
     def do_GET(self):
         p = urlparse(self.path)
         lang, setc = self._pick_lang()
