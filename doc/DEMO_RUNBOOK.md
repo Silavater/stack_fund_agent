@@ -53,10 +53,12 @@ uv run python -m stackfund desk            # -> dist/stackfund-desk.html (8 ETF 
 - SAY: *"They ask it to research 0056. Every number here is computed by a deterministic engine — not the language model. It recommends a five-point rebalance to a thirty-seven-percent target, because the expected benefit beats the trading cost. The model only explains; the engine decides."*
 
 **Scene 3 — Discipline + the gate (18s)**
-- DO: show 0050 **NO_ACTION** (on the desk or pipeline), then in the terminal run
-  **`uv run python -m stackfund pipeline --symbols 00631L`**.
-- SCREEN: `00631L → NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`. (On the desk, each ETF card
-  carries an interactive **candlestick K-line** — Taiwan red-up / green-down — for market context only.)
+- DO: in the terminal run **`uv run python -m stackfund pipeline --symbols 0050 00631L`** — one
+  command covers both lines of the narration. Frame on the top; the **Ledgers** block below is
+  Scene 5, so don't scroll down.
+- SCREEN: `[0050] HARD NO_ACTION [EXPECTED_BENEFIT_BELOW_TRANSACTION_COST]` (benefit 3.2bps < cost
+  19.0bps) **and** `[00631L] HARD NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`. (On the desk, each
+  ETF card carries an interactive **candlestick K-line** — Taiwan red-up / green-down — market context only.)
 - SAY: *"It doesn't just say buy. For 0050 it returns no-action — the trade isn't worth the cost. And ask it about a leveraged ETF? It refuses — ineligible, by design. It rejects what doesn't meet the standard."*
 
 **Scene 4 — Firewall (16s)**
