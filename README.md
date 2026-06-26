@@ -84,7 +84,9 @@ uv run lint-imports           # architectural firewall contracts
 ```
 
 **Web app** (buy → use → ops · bilingual EN/中 · USD test-mode): `bash docker/run-chat-ui.sh`
-→ open `http://localhost:5757/pricing` (routes: `/pricing` `/` `/finops` `/journal`).
+(Windows: double-click `start-ui.cmd`) → open `http://localhost:5757/pricing`. Routes:
+`/desk` (the **Board** — 8 ETFs + candlestick K-lines), `/finops`, `/journal` are public;
+`/` (chat) is **Pro-gated** (`/signout` resets).
 See [`doc/DEMO.md`](doc/DEMO.md).
 
 ### Docker

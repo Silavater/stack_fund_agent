@@ -167,17 +167,23 @@ price/NAV/yield/weight/cap field anywhere.
 The same deterministic engine drives three surfaces; none of them can move a number
 the engine didn't compute.
 
-- **CLI** (`cli.py`, the composition root): `pipeline` (full `L1→L6` run, `--json` or text),
-  `crowd` (L3 FACE only, dry-run default), `verify` (determinism), `desk` (a static HTML
-  research-desk render), `journal` (append one dated decision to the standing research journal).
-- **Web app** (`ui/server.py`, a dependency-free stdlib server) — the buy→use→ops journey:
-  `/pricing` (3 plans, **USD $20 / $100**) → Stripe TEST-mode Checkout → `/success`
-  (server-verified `paid`; sets a subscribed cookie → a `✓ subscribed` banner) → `/` (chat:
-  one real agent turn per message, runs the skills + engine under `SOUL.md`) → `/finops` (the
-  monthly operating P&L + a P&L bar chart + the VoI gate + the receipts ledger) → `/journal`
-  (the standing weekly plan). Every page is **bilingual EN / 中** (cookie-persisted `?lang=`
-  + a `STR` table localized at render time). The app is **presentation only** — it shells out
-  to `python -m stackfund` and recomputes nothing; `report/desk.py` renders, the engine decides.
+- **CLI** (`cli.py`, the composition root): `pipeline` (full `L1→L6` run, `--json` or text;
+  `--live` for real TWSE/Yahoo price+volume), `crowd` (L3 FACE only, dry-run default),
+  `verify` (determinism), `desk` (a static HTML research-desk render — interactive
+  **candlestick K-lines**, 8-ETF default), `signals` (live institutional / margin / news context),
+  `journal` (append one dated decision to the standing research journal).
+- **Web app** (`ui/server.py`, a dependency-free stdlib server) — the buy→use→ops journey with a
+  real freemium gate. `/pricing` (3 plans, **USD $20 / $100**) → Stripe TEST-mode Checkout →
+  `/success` (server-verified `paid`; sets a subscribed cookie → a `✓ subscribed` banner;
+  `/signout` clears it). **Free tier = the public surfaces**: `/desk` (the in-site **Board** —
+  8 ETFs, interactive **candlestick K-lines** + the rebalance decisions, FinOps summary, and the
+  walled-off crowd), `/finops` (monthly P&L + a P&L bar chart + the VoI gate + the receipts
+  ledger), `/journal` (the standing weekly plan). **Pro unlocks `/`** — the chat (one real agent
+  turn per message, **replying in the UI language**, runs the skills + engine under `SOUL.md`); a
+  `🔒` card shows until subscribed, and `/api/chat` returns `402` unsubscribed. Every page is
+  **bilingual EN / 中** (cookie-persisted `?lang=` + a `STR` table localized at render time). The
+  app is **presentation only** — it shells out to `python -m stackfund` and recomputes nothing;
+  `report/desk.py` renders, the engine decides.
 - **Standing research (long-term planning)**: `python -m stackfund journal` runs the same
   deterministic pipeline on a schedule (Hermes cron, or a host scheduler — `docker/setup-cron.sh`)
   and accumulates `.hermes-data/research-journal.jsonl`, surfaced at `/journal`. The desk

@@ -156,16 +156,19 @@ price/NAV/yield/weight/cap 欄位。
 
 同一套確定性引擎驅動三個介面;**沒有任何一個能移動引擎沒算過的數字**。
 
-- **CLI**(`cli.py`,composition root):`pipeline`(完整 `L1→L6`,`--json` 或文字)、
-  `crowd`(只跑 L3 FACE,預設 dry-run)、`verify`(determinism)、`desk`(靜態 HTML 研究台)、
+- **CLI**(`cli.py`,composition root):`pipeline`(完整 `L1→L6`,`--json` 或文字;`--live` 抓
+  真實 TWSE/Yahoo 價量)、`crowd`(只跑 L3 FACE,預設 dry-run)、`verify`(determinism)、
+  `desk`(靜態 HTML 研究台 —— 互動**蠟燭 K 線**、預設 8 ETF)、`signals`(即時籌碼/融資/新聞)、
   `journal`(把一筆日期決策寫進長期研究日誌)。
-- **網頁 App**(`ui/server.py`,零相依 stdlib server)—— 買→用→營運的旅程:
+- **網頁 App**(`ui/server.py`,零相依 stdlib server)—— 買→用→營運的旅程,有真正的 freemium 閘門。
   `/pricing`(三方案,**美元 $20 / $100**)→ Stripe 測試模式結帳 → `/success`(伺服器端驗證
-  `paid`,寫 subscribed cookie → `✓ 已訂閱` 橫幅)→ `/`(對話:每則訊息跑一次真實 agent turn,
-  在 `SOUL.md` 下執行 skills + 引擎)→ `/finops`(本月營運損益 + P&L 長條圖 + VoI 閘門 + 收據明細)
-  → `/journal`(標準週排程)。每頁都是 **雙語 EN / 中**(cookie 持久化 `?lang=` + 一張 `STR` 表
-  在 render 時在地化)。App **只負責呈現** —— 它 shell out 到 `python -m stackfund`,不重算任何
-  數字;`report/desk.py` 負責 render,引擎負責決策。
+  `paid`,寫 subscribed cookie → `✓ 已訂閱` 橫幅;`/signout` 清除)。**免費層 = 公開介面**:
+  `/desk`(站內**看板** —— 8 ETF、互動**蠟燭 K 線** + 再平衡決策、FinOps 摘要、被隔離的群眾)、
+  `/finops`(本月損益 + P&L 長條圖 + VoI 閘門 + 收據明細)、`/journal`(標準週排程)。**Pro 解鎖 `/`**
+  —— 對話(每則訊息跑一次真實 agent turn,**以 UI 語言回覆**,在 `SOUL.md` 下執行 skills + 引擎);
+  未訂閱顯示 `🔒` 卡片、`/api/chat` 回 `402`。每頁都是 **雙語 EN / 中**(cookie 持久化 `?lang=` +
+  一張 `STR` 表在 render 時在地化)。App **只負責呈現** —— shell out 到 `python -m stackfund`,
+  不重算任何數字;`report/desk.py` 負責 render,引擎負責決策。
 - **長期研究(長期規劃)**:`python -m stackfund journal` 把同一套確定性 pipeline 排程執行
   (Hermes cron,或主機排程器 —— `docker/setup-cron.sh`),累積 `.hermes-data/research-journal.jsonl`,
   呈現在 `/journal`。研究台**持續運作,不是被問才動**。

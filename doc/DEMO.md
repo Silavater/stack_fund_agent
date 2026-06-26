@@ -41,9 +41,10 @@ The web app (a dependency-free stdlib server, `ui/server.py`) serves the whole f
 
 | URL | what it is |
 |---|---|
-| `/pricing` | 3 plans (Watch free / **Pro $20** / Desk $100) → Stripe Checkout. After unlock shows a **✓ subscribed** banner |
+| `/pricing` | 3 plans (Watch free / **Pro $20** / Desk $100) → Stripe Checkout. After unlock a **✓ subscribed** banner shows (with **Sign out** → `/signout` to reset) |
 | `/success` | server-verifies the Checkout session is **paid** → unlock (sets the subscribed cookie) |
-| `/` | chat with the Hermes agent (runs the skills + engine under `agent/SOUL.md`); the loader cycles real stages |
+| `/desk` | the **Board** (public) — 8 ETFs with interactive **candlestick K-lines** + the rebalance decisions, FinOps summary, and the walled-off crowd |
+| `/` | **Pro-gated** chat with the Hermes agent (skills + engine under `agent/SOUL.md`, **replies in the UI language**); free visitors see a 🔒 "subscribe to unlock" card |
 | `/finops` | the agent's books (this month): P&L + a **P&L bar chart** + the spend **VoI gate** + the receipts ledger |
 | `/journal` | the **standing weekly research plan** — a dated timeline of past decisions (its memory) |
 
