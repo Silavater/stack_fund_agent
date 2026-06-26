@@ -767,6 +767,7 @@ LOCKED_CHAT_HTML = (
 <style>"""
     + _CSS
     + """
+body{margin:0;background:var(--bg);color:var(--tp);line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC",sans-serif;min-height:100vh}
 .lockwrap{max-width:560px;margin:11vh auto 0;padding:0 20px;text-align:center}
 .lockcard{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:36px 28px}
 .lockcard .ico{font-size:32px;line-height:1}
