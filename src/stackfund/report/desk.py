@@ -143,7 +143,7 @@ _CANDLE_INIT_JS = """
 var RED="#d4452e",GREEN="#0e9f6e";
 for(var sym in SF_CANDLES){var data=SF_CANDLES[sym];var el=document.getElementById("k_"+sym);
 if(!el||!data||data.length<2)continue;el.innerHTML="";
-var chart=lw.createChart(el,{height:138,
+var chart=lw.createChart(el,{height:138,localization:{locale:SF_LOCALE},
 layout:{background:{color:"transparent"},textColor:"#8a8a85",fontFamily:"system-ui",attributionLogo:false},
 grid:{vertLines:{visible:false},horzLines:{color:"rgba(128,128,128,0.14)"}},
 rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false,fixLeftEdge:true,fixRightEdge:true},
@@ -250,12 +250,29 @@ def _finops(f: dict) -> str:
     )
 
 
-def render_desk_html(result: dict, nav: str = "") -> str:
+# Scenario identifiers are Chinese data values; show an English gloss when lang=en.
+_SCENARIO_EN = {
+    "升息": "rate hike",
+    "0056_cut": "0056 dividend cut",
+    "電子權值回檔": "tech heavyweight pullback",
+}
+
+
+def render_desk_html(result: dict, nav: str = "", lang: str = "zh") -> str:
     m = result.get("meta", {})
     etfs = result.get("etfs", [])
     cards = "".join(_etf_card(e) for e in etfs)
+    en = lang == "en"
     # Embedded in the web app, the shared nav carries the brand -> use a plain page title.
-    h1 = _WORDMARK if not nav else '<span style="font-weight:600">研究看板 · Research desk</span>'
+    h1_title = "Research desk" if en else "研究看板"
+    h1 = _WORDMARK if not nav else f'<span style="font-weight:600">{h1_title}</span>'
+    pill = (
+        "Research / education · places no securities order"
+        if en
+        else "研究/教育 · 不下任何證券委託單"
+    )
+    scenario_raw = str(m.get("scenario", ""))
+    scenario_disp = _SCENARIO_EN.get(scenario_raw, scenario_raw) if en else scenario_raw
     candles: dict[str, list[dict]] = {}
     for e in etfs:
         ser = [float(x) for x in (e.get("price_series") or []) if isinstance(x, (int, float))]
@@ -265,11 +282,11 @@ def render_desk_html(result: dict, nav: str = "") -> str:
     body = (
         '<div class="wrap"><div class="top"><div>'
         f'<div class="h1">{h1}</div>'
-        f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(m.get("scenario", ""))} · '
+        f'<div class="meta">Taiwan ETF research desk · deterministic engine · scenario {_esc(scenario_disp)} · '
         f"seed {_esc(m.get('seed', ''))} · formula {_esc(m.get('formula_version', ''))} · "
         f"as of {_esc(m.get('as_of', ''))} · "
         f"{'live data' if m.get('live') else 'frozen fixtures'}</div></div>"
-        '<span class="pill">研究/教育 · 不下任何證券委託單</span></div>'
+        f'<span class="pill">{_esc(pill)}</span></div>'
         '<div class="sec">Rebalance decisions <span>· engine (authoritative)</span></div>'
         f'<div class="grid etfs">{cards}</div>'
         f'<div class="grid two">{_finops(result.get("finops", {}))}{_crowd(etfs)}</div>'
@@ -281,11 +298,12 @@ def render_desk_html(result: dict, nav: str = "") -> str:
         scripts = (
             f"<script>{_LIGHTWEIGHT_JS}</script>"
             f"<script>const SF_CANDLES={json.dumps(candles, ensure_ascii=False)};"
+            f"const SF_LOCALE={json.dumps('en-US' if en else 'zh-TW')};"
             f"{_CANDLE_INIT_JS}</script>"
         )
     css = _CSS if not nav else f"{_CSS}\n{_NAV_CSS}"
     return (
-        '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">'
+        f'<!DOCTYPE html><html lang="{"en" if en else "zh-Hant"}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>StackFund — research desk</title>"
         f"<style>{css}</style></head><body>{nav}{body}{scripts}</body></html>"

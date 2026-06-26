@@ -103,14 +103,14 @@ def _sub_banner(sub_key: str | None, lang: str) -> str:
     )
 
 
-def desk_html() -> str:
+def desk_html(lang: str = "zh") -> str:
     """The visual research desk embedded in the site (engine output: rebalance cards +
     candlestick K-lines + the FinOps books + the walled-off crowd), with the shared nav."""
     from stackfund.cli import DEFAULT_SYMBOLS, build_pipeline_result
     from stackfund.report.desk import render_desk_html
 
     result = build_pipeline_result(DEFAULT_SYMBOLS, "升息", 42)
-    return render_desk_html(result, nav="__NAV__")
+    return render_desk_html(result, nav="__NAV__", lang=lang)
 
 
 _NOISE = ("plugins: Plugin", "registered:", "reconcile:", "cont-init", "s6-rc")
@@ -355,7 +355,7 @@ class Handler(BaseHTTPRequestHandler):
         elif p.path == "/success":
             self._html(success_html(parse_qs(p.query)), "", lang, setc)
         elif p.path == "/desk":
-            self._html(desk_html(), "desk", lang, setc)
+            self._html(desk_html(lang), "desk", lang, setc)
         elif p.path == "/finops":
             self._html(finops_html(), "finops", lang, setc)
         elif p.path == "/journal":
