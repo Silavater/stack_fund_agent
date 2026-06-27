@@ -219,18 +219,27 @@ def _finops_rows():
     return "".join(out), pnl
 
 
-def _pnl_chart_svg(rev: float, cost: float, margin: float) -> str:
+def _pnl_chart_svg(rev: float, cost: float, margin: float, lang: str = "zh") -> str:
     """Horizontal P&L bars (revenue / cost / margin), scaled to the largest value."""
     mx = max(rev, cost, margin, 1.0)
     x0, barw, w_total = 64, 372, 560
+    if lang == "en":
+        labels = ("Revenue", "Cost", "Margin")
+        aria = (
+            f"Revenue, Cost, Margin bar chart — "
+            f"Revenue {rev:.0f}, Cost {cost:.0f}, Margin {margin:.0f}"
+        )
+    else:
+        labels = ("營收", "成本", "毛利")
+        aria = f"營收、成本、毛利長條圖 — 營收 {rev:.0f}、成本 {cost:.0f}、毛利 {margin:.0f}"
     rows = (
-        ("營收", rev, "var(--accent)"),
-        ("成本", cost, "var(--ban-tx)"),
-        ("毛利", margin, "var(--ok)"),
+        (labels[0], rev, "var(--accent)"),
+        (labels[1], cost, "var(--ban-tx)"),
+        (labels[2], margin, "var(--ok)"),
     )
     parts = [
         f'<svg viewBox="0 0 {w_total} 116" width="100%" role="img" '
-        f'aria-label="營收、成本、毛利長條圖 — 營收 {rev:.0f}、成本 {cost:.0f}、毛利 {margin:.0f}">'
+        f'aria-label="{aria}">'
     ]
     y = 12
     for label, val, color in rows:
@@ -255,7 +264,7 @@ def _pnl_chart_svg(rev: float, cost: float, margin: float) -> str:
     return "".join(parts)
 
 
-def finops_html() -> str:
+def finops_html(lang: str = "zh") -> str:
     try:
         rows, pnl = _finops_rows()
     except Exception as exc:  # noqa: BLE001
@@ -265,12 +274,14 @@ def finops_html() -> str:
         .replace("__REV__", f"{pnl.revenue:.0f}")
         .replace("__COST__", f"{pnl.cost:.0f}")
         .replace("__MARGIN__", f"{pnl.gross_margin:.0f}")
-        .replace("__PNLCHART__", _pnl_chart_svg(pnl.revenue, pnl.cost, pnl.gross_margin))
+        .replace("__PNLCHART__", _pnl_chart_svg(pnl.revenue, pnl.cost, pnl.gross_margin, lang))
     )
 
 
-def journal_html() -> str:
+def journal_html(lang: str = "zh") -> str:
     """Render the standing research journal (the agent's long-term plan + memory)."""
+    from stackfund.report.desk import _SCENARIO_EN
+
     path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", ".hermes-data", "research-journal.jsonl"
     )
@@ -291,10 +302,13 @@ def journal_html() -> str:
                 acts += f'<span class="jbadge act">{a["symbol"]} REBALANCE {a.get("delta_pp", 0):+.2f}pp</span>'
             else:
                 acts += f'<span class="jbadge hold">{a["symbol"]} NO_ACTION</span>'
+        scenario = e.get("scenario", "")
+        if lang == "en":
+            scenario = _SCENARIO_EN.get(scenario, scenario)
         rows.append(
             f'<div class="je"><div class="jd">{e.get("date", "")}</div>'
             f'<div class="jb"><div class="ja">{acts}</div>'
-            f'<div class="jmeta">__T_JE_SCENARIO__ {e.get("scenario", "")} · __T_JE_MARGIN__ ${e.get("margin", 0):.0f}</div></div></div>'
+            f'<div class="jmeta">__T_JE_SCENARIO__ {scenario} · __T_JE_MARGIN__ ${e.get("margin", 0):.0f}</div></div></div>'
         )
     body = "".join(rows) or '<p style="color:var(--ts);padding:14px 0">__T_JOURNAL_EMPTY__</p>'
     return JOURNAL_HTML.replace("__ROWS__", body).replace("__N__", str(len(entries)))
@@ -376,9 +390,9 @@ class Handler(BaseHTTPRequestHandler):
         elif p.path == "/desk":
             self._html(desk_html(lang), "desk", lang, setc)
         elif p.path == "/finops":
-            self._html(finops_html(), "finops", lang, setc)
+            self._html(finops_html(lang), "finops", lang, setc)
         elif p.path == "/journal":
-            self._html(journal_html(), "journal", lang, setc)
+            self._html(journal_html(lang), "journal", lang, setc)
         elif p.path == "/signout":  # clear the demo subscription cookie -> fresh state
             self.send_response(302)
             self.send_header("Location", "/pricing")
@@ -508,7 +522,7 @@ STR = {
         "NO_STRIPE_ROW": "— 未呼叫 Stripe",
         "TITLE_JOURNAL": "StackFund — 研究日誌",
         "JOURNAL_TITLE": "研究日誌",
-        "JOURNAL_PLAN_A": "<b>長期規劃</b> — 這個研究台有一個<b>標準週排程</b>:每週自動跑一次 0050 / 0056 / 00878 研究,把決策寫進日誌(它的記憶)。目前",
+        "JOURNAL_PLAN_A": "<b>紀律,長這個樣子。</b>同一張投資組合,跑過 <b>升息 / 0056 配息調整 / 電子權值回檔</b> 三種總經情境 —— 引擎每週都得出<b>相同的配置</b>。因為 ETF 基本面的真實變化,還不足以蓋過交易成本。會跟新聞翻來覆去的是業務員;這個不會。目前累積",
         "JOURNAL_PLAN_B": "筆。排程方式見 <code>docker/setup-cron.sh</code>(Hermes cron)。",
         "JOURNAL_EMPTY": "尚無紀錄 — 執行 <code>python -m stackfund journal</code> 產生第一筆。",
         "JE_SCENARIO": "情境",
@@ -598,7 +612,7 @@ STR = {
         "NO_STRIPE_ROW": "— no Stripe call",
         "TITLE_JOURNAL": "StackFund — Research journal",
         "JOURNAL_TITLE": "Research journal",
-        "JOURNAL_PLAN_A": "<b>Long-term plan</b> — this desk runs a <b>standing weekly schedule</b>: every week it researches 0050 / 0056 / 00878 and writes the decisions to its journal (its memory). So far",
+        "JOURNAL_PLAN_A": "<b>This is what discipline looks like.</b> Same portfolio, run across <b>three different macro scenarios</b> — rate hike, 0056 dividend cut, tech-heavyweight pullback — and the engine reached the <b>same allocation</b> every week. Because the underlying ETF fundamentals didn't actually move enough to beat the transaction cost. Yes-man advisors flip-flop with the news. This one doesn't. So far",
         "JOURNAL_PLAN_B": "entries. See <code>docker/setup-cron.sh</code> (Hermes cron) for scheduling.",
         "JOURNAL_EMPTY": "No entries yet — run <code>python -m stackfund journal</code> to create the first.",
         "JE_SCENARIO": "scenario",
