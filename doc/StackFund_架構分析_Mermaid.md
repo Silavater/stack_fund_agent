@@ -1,6 +1,6 @@
 # StackFund 架構分析（Mermaid，Core-B 排版優化版）
 
-> 來源文件：`doc/StackFund_可行性報告.md`
+> 來源文件：`doc/StackFund_可行性報告.md` · English: [StackFund_Architecture_Mermaid.md](StackFund_Architecture_Mermaid.md)
 >
 > 本文件對齊可行性報告 v3.1「Core-B 架構定案版（FACE 純敘事側軌）」。本次更新落實 v3.1 架構變更：FACE 改為純敘事側軌，群眾層不回寫 L4——移除 two-key gate／bounded clamp／threshold-flip／TiltProvenance／zero-modifier CI，改以「L4 不接線」結構防火牆取代。
 

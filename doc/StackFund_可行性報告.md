@@ -1,5 +1,7 @@
 # StackFund 可行性報告（台股 ETF 研究台 — Core-B 架構定案版）
 
+> English: [StackFund_Feasibility_Report.md](StackFund_Feasibility_Report.md)
+
 | 項目 | 內容 |
 |---|---|
 | **專案名稱** | StackFund — Autonomous Taiwan ETF Research Desk |
