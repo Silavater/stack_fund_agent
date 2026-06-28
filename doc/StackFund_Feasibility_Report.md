@@ -1,7 +1,5 @@
 # StackFund Feasibility Report (Taiwan-ETF research desk — Core-B finalised architecture)
 
-> 中文版 / Chinese: [StackFund_可行性報告.md](StackFund_可行性報告.md)
-
 | Item | Content |
 |---|---|
 | **Project name** | StackFund — Autonomous Taiwan ETF Research Desk |

@@ -1,6 +1,6 @@
 # StackFund Architecture Analysis (Mermaid, Core-B layout-optimised edition)
 
-> Source document: `doc/StackFund_Feasibility_Report.md` · 中文版 / Chinese: [StackFund_架構分析_Mermaid.md](StackFund_架構分析_Mermaid.md)
+> Source document: `doc/StackFund_Feasibility_Report.md`
 >
 > This document is aligned with feasibility report v3.1, "Core-B finalised architecture (FACE as a pure-narrative side-rail)". This update realises the v3.1 architecture change: FACE becomes a pure-narrative side-rail, the crowd layer never writes back to L4 — the two-key gate / bounded clamp / threshold-flip / TiltProvenance / zero-modifier CI are removed and replaced by an "L4 is not wired" structural firewall.
 

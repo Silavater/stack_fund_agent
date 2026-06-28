@@ -119,4 +119,4 @@ Windows 有對應的 `*.ps1`。模型可用 `HERMES_MODEL` / `HERMES_PROVIDER` �
    **引擎真數字 + 拒絕個別化建議 + 防火牆聲明** —— 這三點就是 StackFund 的核心賣點。
 4. **(可選)** 把 `gateway run` 訊息服務 / web dashboard 接好(目前 demo 用 oneshot + chat,已足夠)。
 
-> 相關設計細節見 [`doc/ARCHITECTURE.md`](ARCHITECTURE.md)(中文版 `ARCHITECTURE.zh-TW.md`)。
+> 相關設計細節見 [`doc/ARCHITECTURE.md`](ARCHITECTURE.md)。

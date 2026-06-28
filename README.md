@@ -10,9 +10,20 @@ Business Hackathon** (NVIDIA × Stripe × Nous Research).
 > places no securities orders.** The crowd-scenario layer is *scenario rehearsal,
 > not prediction*; synthetic personas, not real opinion; not backtested.
 
+## 📖 Docs — where to start
+
+| Read this | What it is |
+|---|---|
+| **[doc/DEMO.md](doc/DEMO.md)** | The demo walkthrough — the buy → research → ops journey |
+| **[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)** | The Core-B design: ENGINE + FACE, the firewall, L1–L6 |
+| **[Feasibility report](doc/StackFund_Feasibility_Report.md)** · **[Architecture diagrams](doc/StackFund_Architecture_Mermaid.md)** | Deep dive: the full viability argument + 10 Mermaid diagrams |
+| **[NOTICE](NOTICE)** · **[LICENSE](LICENSE)** | Third-party attribution + MIT licence |
+
+> The agent itself is `agent/SOUL.md` (the persona) + `skills/` (the ETF-analysis & crowd-scenario Agent Skills); the sandbox policy is in `policy/`.
+
 ## Architecture — Core-B (ENGINE + FACE, firewalled)
 
-> Full write-up: **[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)** · 中文版 **[doc/ARCHITECTURE.zh-TW.md](doc/ARCHITECTURE.zh-TW.md)**
+> Full write-up: **[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)**
 
 - **ENGINE** (deterministic Python trunk): `L1` data book (eligibility gate) →
   `L2` scorecard → `L4` portfolio manager → `L5` finops → `L6` audit. Computes
@@ -61,7 +72,7 @@ tests/                firewall guards + schema validation + engine + CLI
 docker/               Dockerfile.core, Dockerfile.agent, compose.yml, egress-proxy/
 policy/               openshell.yaml, nemoclaw-blueprint.yaml
 .github/workflows/    ci.yml  (ruff → import-linter → pytest → docker build)
-doc/                  ARCHITECTURE.md (+ .zh-TW), StackFund_可行性報告.md, …_Mermaid.md
+doc/                  ARCHITECTURE.md, DEMO.md, StackFund_Feasibility_Report.md, StackFund_Architecture_Mermaid.md
 ```
 
 ## Quickstart

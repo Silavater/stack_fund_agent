@@ -8,8 +8,6 @@
 > explains possible reactions, but can never vote on the portfolio. StackFund is a
 > research desk — **it places no securities orders.**
 
-A Chinese version of this document: [ARCHITECTURE.zh-TW.md](ARCHITECTURE.zh-TW.md).
-
 ---
 
 ## 1. Two halves: ENGINE (authoritative) + FACE (non-authoritative)
