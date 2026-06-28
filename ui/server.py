@@ -237,10 +237,7 @@ def _pnl_chart_svg(rev: float, cost: float, margin: float, lang: str = "zh") -> 
         (labels[1], cost, "var(--ban-tx)"),
         (labels[2], margin, "var(--ok)"),
     )
-    parts = [
-        f'<svg viewBox="0 0 {w_total} 116" width="100%" role="img" '
-        f'aria-label="{aria}">'
-    ]
+    parts = [f'<svg viewBox="0 0 {w_total} 116" width="100%" role="img" aria-label="{aria}">']
     y = 12
     for label, val, color in rows:
         w = max(
