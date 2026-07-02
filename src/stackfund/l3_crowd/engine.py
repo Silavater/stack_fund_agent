@@ -13,14 +13,28 @@ import hashlib
 from stackfund.contracts.crowd_narrative import CrowdNarrative, PersonaReaction
 from stackfund.contracts.scenario_seed import ScenarioSeed
 
+# The full closed-set Taiwan-retail roster — one-to-one with the taxonomy in
+# skills/crowd-scenario/references/personas.md (10 archetypes; the consensus label
+# itself is seed-driven, so roster size never moves a decision or a demo number).
 _ARCHETYPES = (
     "long_term_holder",
     "day_trader",
     "yield_seeker",
-    "panic_retail",
+    "leveraged_etf_player",
     "foreign_institutional_lens",
+    "panic_retail",
+    "ptt_dcard_trendwatch",
+    "mom_savings_group",
+    "main_force_lens",
+    "dca_newbie",
 )
-_CONTRA = ("long_term_holder", "foreign_institutional_lens")
+# Contra-cyclical stabilisers (fade the consensus); the rest are pro-cyclical amplifiers.
+_CONTRA = (
+    "long_term_holder",
+    "foreign_institutional_lens",
+    "mom_savings_group",
+    "main_force_lens",
+)
 
 
 def _internal_view(seed: ScenarioSeed) -> float:

@@ -2,7 +2,8 @@
 """Thin wrapper: delegate to the deterministic StackFund crowd engine CLI.
 
 Defaults to --dry-run (zero LLM, zero spend) so it is safe in CI and as a demo
-fallback. The deterministic modifier is computed in Python regardless.
+fallback. The categorical crowd_consensus is seed-derived in Python regardless —
+there is NO numeric modifier (the artifact is narrative-only, non-authoritative).
 """
 
 from __future__ import annotations

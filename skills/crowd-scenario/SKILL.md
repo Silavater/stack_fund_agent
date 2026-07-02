@@ -2,7 +2,7 @@
 name: stackfund-crowd-scenario
 description: Rehearse (not predict) how Taiwan retail ETF investor archetypes might react to an already-computed market event, producing a second-order reaction-chain narrative plus a categorical, NON-AUTHORITATIVE crowd_consensus (bearish / neutral / bullish — no numeric scalar). Scenario stress-test, not sentiment forecast. Use for the Pro crowd-scenario report. It never decides any number, never influences any action, and never writes back to the decision layer.
 license: MIT
-version: 1.0.0
+version: 1.1.0
 metadata:
   hermes:
     tags: [scenario, crowd, consensus, ETF, Taiwan, narrative, non-authoritative]
@@ -60,6 +60,16 @@ python ${HERMES_SKILL_DIR}/scripts/run_scenario.py --symbol 0056 --scenario 0056
 > 〔情境推演 · 合成人格 · 非權威 · 已與決策層隔離〕在這個**降息假想情境**下,合成散戶人格
 > 整體偏多(crowd_consensus = bullish)。這是反應鏈推演,**不是預測,也不回寫任何權重或委託**。
 > 真正的決策請看 `stackfund-etf-analysis` 的確定性引擎;兩者分歧時,**以引擎為準**。
+
+## Roster & extending to another market
+- The full **10-archetype Taiwan-retail roster** runs in the engine
+  (`_ARCHETYPES`, one-to-one with `references/personas.md`; hash pinned in
+  `references/seed.lock.json`). Roster size never moves the consensus — the
+  categorical label depends only on the frozen seed hash.
+- The roster is **market-scoped**. Adding US equities later = a sibling closed
+  set (`personas.us.md` + its own roster tuple + seed.lock entry), with the
+  same stance vocabulary, the same `CrowdNarrative` schema, and the **same
+  firewall — new market, same cage**. Never mix markets in one roster.
 
 ## References
 - `references/personas.md` — closed-set archetype taxonomy + behavioural priors.

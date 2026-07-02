@@ -31,6 +31,24 @@
   - `range=1mo` daily **close series** → live **`price_5d_return`** (and a 20-day
     moving average) computed in Python.
 
+### Chips (institutional / margin) — `src/stackfund/l1_databook/sources/chips.py`
+- `fetch_institutional_netbuy(symbol)` — TWSE **T86** (three institutional
+  investors' daily net buy/sell, 三大法人), via the rwd/zh endpoint.
+- `fetch_margin(symbol)` — TWSE **MI_MARGN** (margin financing / short balance).
+- Cached ~1h on disk; **graceful** (returns `None` on any failure). Surface via
+  `python -m stackfund signals --symbol 0050` (or `scripts/signals.py`).
+- **Context only** — chips never enter the DataBook or the decision path.
+
+### News — `src/stackfund/l1_databook/sources/news.py`
+- Google News RSS (`hl=zh-TW`), top-N headlines per symbol; stdlib XML; graceful
+  (`[]` on failure). Catalyst **context**, never a decision input.
+
+### Trading calendar — `src/stackfund/l1_databook/trading_calendar.py`
+- Taipei trading-day calendar (fixed UTC+8): `is_trading_day`,
+  `previous_trading_day`, `resolve_report_trading_day`, `trading_session_phase`;
+  TWSE holiday API cached at `.hermes-data/tw_market_holidays.json`
+  (env: `STACKFUND_HOLIDAY_CACHE_PATH`, `STACKFUND_EXTRA_HOLIDAYS`).
+
 ## What is live vs reference (with `--live`)
 - **Live:** `price`, `volume_shares` (TWSE STOCK_DAY_ALL) + `price_5d_return`
   (Yahoo series). These are the decision-driving signals.
@@ -54,6 +72,20 @@ against a stable feed and pass it to `load_databook(..., fundamentals=...)` — 
 When live intraday is limited, use TWSE daily proxies and state the limitation:
 `fmtqik` (Highlights of Daily Trading) and `mi-stock20` (Top 20 by Volume), then
 Yahoo for narrative context.
+
+## Multi-market seam (roadmap — TW/US equities)
+
+What is market-scoped today, and what generalises:
+- **TW-specific:** the TWSE connectors (STOCK_DAY_ALL / T86 / MI_MARGN), the ROC
+  date format, the Taipei calendar, the `.TW` Yahoo suffix, NT$-denominated costs.
+- **Already general:** the Yahoo chart connector (drop the `.TW` suffix for US
+  tickers), the `DataBook`/fixture shape, the pluggable `FundamentalsProvider`
+  seam, the HTTP disk cache, freshness labelling.
+- **Adding US equities** = a US source module (Yahoo works unauthenticated;
+  fundamentals via a provider — e.g. SEC EDGAR facts), a US trading calendar,
+  and an equity-flavoured eligibility gate — behind the *same* contracts.
+  Per-market source priority stays the same idea: official exchange/filings
+  first, Yahoo as cross-check, news as context.
 
 ## Freshness & honesty rules
 - `freshness=live` means **price/volume** are live (TWSE); fundamentals may still

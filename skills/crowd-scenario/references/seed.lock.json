@@ -1,10 +1,10 @@
 {
   "rng_seed": 42,
-  "roster_hash": "TBD-after-personas-finalised",
+  "roster_hash": "0c5038bca626535ffd66c9827903e996d2fbf679a68b2bc3bdd926868414e855",
+  "roster_hash_method": "sha256 over ','.join(_ARCHETYPES) in src/stackfund/l3_crowd/engine.py (the roster that actually runs; 10 archetypes, one-to-one with references/personas.md)",
   "model_id": "nemotron",
   "temperature": 0.0,
-  "formula_id": "contrarian-agg/1.0.0",
   "n_personas_default": 30,
   "rounds": 2,
-  "notes": "Single source of truth for deterministic replay. modifier depends only on closed-vocab stance tokens, robust to LLM wording drift."
+  "notes": "Single source of truth for deterministic replay. The categorical crowd_consensus depends only on the frozen ScenarioSeed hash (never on roster size or LLM wording), so replays are stable across roster edits — recompute roster_hash whenever _ARCHETYPES changes."
 }

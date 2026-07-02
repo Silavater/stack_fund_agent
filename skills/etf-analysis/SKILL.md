@@ -1,8 +1,8 @@
 ---
 name: stackfund-etf-analysis
-description: Produce deterministic Taiwan ETF research — fetch official TWSE price/volume (live or frozen), compute a transparent scorecard, and a hard-only rebalance plan with NO_ACTION support — by calling the StackFund engine. Use when researching 0050/0056/00878 or building an ETF scorecard or rebalance plan. All numbers are computed in Python; the model only interprets and writes prose. Research/education only — not individualised investment advice, and it never places any securities order.
+description: Produce deterministic Taiwan ETF research — fetch official TWSE price/volume (live or frozen), pull real chips/news context (institutional net-buy, margin, headlines), compute a transparent scorecard, and a hard-only rebalance plan with NO_ACTION support — by calling the StackFund engine. Use when researching Taiwan ETFs (0050, 0056, 006208, 00878, 00919, 00713, 00929, 00850) or building an ETF scorecard or rebalance plan. All numbers are computed in Python; the model only interprets and writes prose. Research/education only — not individualised investment advice, and it never places any securities order.
 license: MIT
-version: 0.2.0
+version: 0.3.0
 metadata:
   hermes:
     tags: [ETF, Taiwan, TWSE, Yahoo, research, scorecard, deterministic, non-advisory]
@@ -43,10 +43,17 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    Runs L1 → L2 (eligibility gate + scorecard) → L4 (hard-only plan on
    `AuthoritativeState`; `NO_ACTION` is first-class with `reason_codes`, incl.
    `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`) → L5/L6 (earn/spend + P&L).
-4. **Deep value mode (optional)** — for "long-term value / moat" requests, follow
+4. **Market context (optional, live)** — real chips + headlines for colour:
+   ```bash
+   python ${HERMES_SKILL_DIR}/scripts/signals.py --symbol 0050
+   ```
+   Institutional net-buy (TWSE T86), margin balance (MI_MARGN), recent news.
+   **Context only — never a decision input**; graceful on fetch failure. Present
+   it in the narrative layer, clearly separated from the engine's decision.
+5. **Deep value mode (optional)** — for "long-term value / moat" requests, follow
    `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating —
    a **structural-quality** classification (durability), **never** a buy/sell call.
-5. **Standing research (optional, long-term)** — the same deterministic pipeline can run
+6. **Standing research (optional, long-term)** — the same deterministic pipeline can run
    on a schedule (`python -m stackfund journal`, see `docker/setup-cron.sh`), accumulating
    a dated research journal. The desk operates continuously, not only when asked.
 
@@ -67,23 +74,26 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
    {"symbol": "0056", "action": "REBALANCE", "delta_pp": 5.0, "target_weight_pct": 37.4,
     "benefit_bps": 81.0, "cost_bps": 19.0,
     "reasons": ["valuation +0.30", "yield/fundamental +1.00", "trend -0.10"],
-    "crowd_consensus": "neutral", "engine_posture": "bullish", "divergence_bucket": "MEDIUM"}
+    "crowd_consensus": "bearish", "engine_posture": "bullish", "divergence_bucket": "HIGH"}
    ```
 3. **Interpret — invent no number; plain language first, jargon in a separate detail block:**
    > 【結論】0056 偏正向,引擎在這個研究情境下建議**小幅加碼**到約 37% 權重。
    > 【為什麼】估值與配息面偏好,而且**預期效益明顯大於買賣成本**(不是追價)。
    > 〔細節〕REBALANCE +5.00pp → 目標 37.4%;benefit 81bps(約每投入 1 萬多 ~81 元預期效益)
-   > > cost 19bps;reason codes valuation +0.30 / yield +1.00 / trend −0.10。群眾 neutral、
-   > 引擎 bullish、分歧 MEDIUM —— 群眾僅供參考,不影響決策。
+   > > cost 19bps;reason codes valuation +0.30 / yield +1.00 / trend −0.10。群眾 bearish、
+   > 引擎 bullish、分歧 HIGH —— 群眾與引擎意見相左,但**群眾僅供參考,不影響決策**
+   > (分歧越大,越顯出決策只由硬數據決定)。
    > *研究/教育 · 非個別化建議 · 不下任何證券委託單。*
 
    For a `NO_ACTION` (e.g. 0050 `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`): lead with
    「這週不動 0050 —— 預期效益還蓋不過手續費/稅,動了反而虧」, then the bps detail.
 
 ## Failure modes & scope
-- **Scope:** **0050 / 0056 / 006208 / 00878 / 00919** (all pass the L2 eligibility gate).
-  The gate **rejects** stale / leveraged-inverse / thin / NAV-incomparable ETFs — e.g.
-  `00631L` (2× leveraged) → `NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`, by design.
+- **Scope:** the 8-ETF fixture universe — **0050 / 0056 / 006208 / 00878 / 00919 /
+  00713 / 00929 / 00850** (all pass the L2 eligibility gate; the list is
+  `DEFAULT_SYMBOLS` in `src/stackfund/cli.py`). The gate **rejects** stale /
+  leveraged-inverse / thin / NAV-incomparable ETFs — e.g. `00631L` (2× leveraged)
+  → `NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`, by design.
   For a ticker with no fixture, say so — never fabricate fundamentals.
 - **Live fetch fails / partial** → fall back to the frozen `DataBook` and **label it
   `frozen` / `partial`**; never present stale data as live.
@@ -91,6 +101,24 @@ This skill is a thin wrapper over the StackFund deterministic engine. The model
   feed excludes ETFs) — label them reference, not truth.
 - **Always surface freshness:** state the `as_of` date and live-vs-frozen in every reply;
   if a source is incomplete, mark it — don't invent. Detail: `references/data-sources.md`.
+
+## Extending the universe (adding an ETF — and later TW/US equities)
+Adding an ETF is a data change, not a code change:
+1. Create `fixtures/etf_<symbol>.json` (copy an existing one: `metrics` —
+   price/nav/discount_premium/tracking_error/yield/price_5d_return/
+   catalyst_strength — plus a `price_series`).
+2. Add the symbol to `DEFAULT_SYMBOLS` in `src/stackfund/cli.py` (or pass
+   `--symbols` ad hoc). The eligibility gate decides — a leveraged/thin product
+   is *supposed* to come back `INELIGIBLE`.
+3. `--live` overlays real TWSE price/volume automatically; fundamentals come
+   from the pluggable `FundamentalsProvider` (see `references/data-sources.md`).
+
+**Individual TW/US equities (roadmap):** engine-side work behind the same
+contracts — an equity eligibility gate + fundamental scores (the L4 math is
+already instrument-agnostic; see `references/scoring-rules.md`), a US source
+module + calendar (see the multi-market seam in `references/data-sources.md`),
+and a market-scoped crowd roster (see the `stackfund-crowd-scenario` skill).
+This skill stays a thin wrapper either way — **never** compute numbers here.
 
 ## References
 - `references/data-sources.md` — real connectors + source priority + ETF caveats.
