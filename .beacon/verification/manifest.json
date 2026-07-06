@@ -1,0 +1,14 @@
+﻿{
+  "parts": {
+    "part-001": {
+      "slices": {
+        "slice-001": {
+          "type": "implementation",
+          "commands": [],
+          "dependsOn": [],
+          "manualQa": []
+        }
+      }
+    }
+  }
+}
