@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+HORIZONS = ("intraday", "swing", "long")
+INTENSITIES = ("mild", "severe")
+
 
 @dataclass(frozen=True)
 class ScenarioSeed:
@@ -20,3 +23,12 @@ class ScenarioSeed:
     # Ordinal buckets only — NO raw price/nav/yield numbers.
     ordinal_context: dict[str, str] = field(default_factory=dict)
     seed_hash: str = ""
+    # Rehearsal dimensions: which time-scale and how strong the shock. Categorical
+    # only (no numeric scalar), so they stay firewall-safe while changing which
+    # cohort leads the reaction chain.
+    horizon: str = "swing"  # intraday | swing | long
+    intensity: str = "mild"  # mild | severe
+
+    def __post_init__(self) -> None:
+        assert self.horizon in HORIZONS, "horizon out of vocabulary"
+        assert self.intensity in INTENSITIES, "intensity out of vocabulary"

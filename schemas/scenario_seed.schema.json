@@ -15,6 +15,8 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
-    "seed_hash": { "type": "string" }
+    "seed_hash": { "type": "string" },
+    "horizon": { "enum": ["intraday", "swing", "long"] },
+    "intensity": { "enum": ["mild", "severe"] }
   }
 }

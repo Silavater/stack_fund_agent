@@ -33,11 +33,19 @@ def _bucket_yield(x: float) -> str:
     return "high"
 
 
-def make_seed(book: DataBook, market_scenario_label: str, rng_seed: int = 42) -> ScenarioSeed:
+def make_seed(
+    book: DataBook,
+    market_scenario_label: str,
+    rng_seed: int = 42,
+    horizon: str = "swing",
+    intensity: str = "mild",
+) -> ScenarioSeed:
     ordinal = {
         "discount_premium": _bucket_discount_premium(book.metrics.get("discount_premium", 0.0)),
         "yield": _bucket_yield(book.metrics.get("yield", 0.0)),
     }
+    # horizon + intensity feed the hash so different rehearsal dimensions are a
+    # different seed (distinct chain), while determinism holds per full seed.
     seed_hash = hashlib.sha256(
         json.dumps(
             {
@@ -45,6 +53,8 @@ def make_seed(book: DataBook, market_scenario_label: str, rng_seed: int = 42) ->
                 "label": market_scenario_label,
                 "rng": rng_seed,
                 "ordinal": ordinal,
+                "horizon": horizon,
+                "intensity": intensity,
             },
             sort_keys=True,
         ).encode("utf-8")
@@ -56,4 +66,6 @@ def make_seed(book: DataBook, market_scenario_label: str, rng_seed: int = 42) ->
         market_scenario_label=market_scenario_label,
         ordinal_context=ordinal,
         seed_hash=seed_hash,
+        horizon=horizon,
+        intensity=intensity,
     )
