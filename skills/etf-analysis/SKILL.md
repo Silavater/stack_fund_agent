@@ -1,8 +1,8 @@
 ---
 name: stackfund-etf-analysis
-description: Produce deterministic Taiwan ETF research — fetch official TWSE price/volume (live or frozen), pull real chips/news context (institutional net-buy, margin, headlines), compute a transparent scorecard, and a hard-only rebalance plan with NO_ACTION support — by calling the StackFund engine. Use when researching Taiwan ETFs (0050, 0056, 006208, 00878, 00919, 00713, 00929, 00850) or building an ETF scorecard or rebalance plan. All numbers are computed in Python; the model only interprets and writes prose. Research/education only — not individualised investment advice, and it never places any securities order.
+description: Research a Taiwan ETF (0050/0056/006208/00878/00919/00713/00929/00850) or build a rebalance plan. Computes a transparent scorecard + a hard-only plan with first-class NO_ACTION (and a worth-acting ranking) via the StackFund engine — the model interprets, never computes. Research/education only; places no securities order.
 license: MIT
-version: 0.3.0
+version: 0.4.0
 metadata:
   hermes:
     tags: [ETF, Taiwan, TWSE, Yahoo, research, scorecard, deterministic, non-advisory]
@@ -12,121 +12,79 @@ metadata:
 # StackFund — ETF Analysis (deterministic ENGINE)
 
 > **Tier A disclaimer (load banner):** 研究/教育·非預測·非個別化投資建議·**全程不下任何證券委託單**;所有金額與權重由 deterministic 程式計算。
->
-> Design & reference docs adapted from **AZNitro/tw-stock-agent** (MIT) — see [`NOTICE`](NOTICE). Its placeholder fetchers are **completed** here as real TWSE/Yahoo connectors.
 
-This skill is a thin wrapper over the StackFund deterministic engine. The model
-**does not compute any number** — it calls the CLI and interprets the output.
+A thin wrapper over the StackFund deterministic engine. The model **computes no
+number** — it calls the CLI and interprets the output. Design docs adapted from
+**AZNitro/tw-stock-agent** (MIT) — see [`NOTICE`](NOTICE).
 
-## Core principles (adapted from tw-stock-agent)
-1. **Official data is the anchor** — prefer TWSE for price/volume/structure.
-2. **Yahoo is a narrative/expectation layer** — a quote cross-check, not truth.
-3. **News is catalyst context, not truth by default.**
-4. **Contrarian sentiment is auxiliary** — in StackFund it is the L3 crowd
-   side-rail, *non-authoritative* and firewalled out of the decision (see the
-   `stackfund-crowd-scenario` skill). It must never override hard data.
-5. **Separate observation from interpretation** — report what was observed first.
+## Quick start
+```bash
+# The full desk in one call: L1→L2 (eligibility + scorecard) → L4 (plan / NO_ACTION)
+# → a worth-acting ranking → L5 ledgers. Omit --live for the frozen fixture.
+python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878
+```
+Each ETF returns `REBALANCE ±Xpp` **or** `NO_ACTION` with a reason code; the run
+ends with a ranking of which ETFs are most worth acting on this cycle.
 
-## Workflow
-1. **Normalize** the request: ticker(s) (e.g. `0050`, `0056`, `00878`), horizon, output type.
-2. **Collect official data first** (live or frozen):
-   ```bash
-   python ${HERMES_SKILL_DIR}/scripts/fetch.py --symbol 0050 --live   # TWSE STOCK_DAY_ALL
-   ```
-   This builds an immutable `DataBook` (price/volume from TWSE; ETF fundamentals
-   — yield/NAV/tracking error — carried from the fundamentals source, see
-   `references/data-sources.md`). Omit `--live` for the frozen fixture.
-3. **Score + decide** (deterministic):
-   ```bash
-   python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878
-   ```
-   Runs L1 → L2 (eligibility gate + scorecard) → L4 (hard-only plan on
-   `AuthoritativeState`; `NO_ACTION` is first-class with `reason_codes`, incl.
-   `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`) → L5/L6 (earn/spend + P&L).
-4. **Market context (optional, live)** — real chips + headlines for colour:
-   ```bash
-   python ${HERMES_SKILL_DIR}/scripts/signals.py --symbol 0050
-   ```
-   Institutional net-buy (TWSE T86), margin balance (MI_MARGN), recent news.
-   **Context only — never a decision input**; graceful on fetch failure. Present
-   it in the narrative layer, clearly separated from the engine's decision.
-5. **Deep value mode (optional)** — for "long-term value / moat" requests, follow
-   `references/value-analysis.md` (Porter / moat / TOWS) and the **[A]–[E]** rating —
-   a **structural-quality** classification (durability), **never** a buy/sell call.
-6. **Standing research (optional, long-term)** — the same deterministic pipeline can run
-   on a schedule (`python -m stackfund journal`, see `docker/setup-cron.sh`), accumulating
-   a dated research journal. The desk operates continuously, not only when asked.
+## Commands
+| command | what it does |
+|---|---|
+| `research.py --symbols 0050 0056 …` | Run the full pipeline (score → plan → rank → ledgers). Add `--live` for real TWSE price/volume; `--json` for structured output. |
+| `fetch.py --symbol 0050 [--live]` | Build/refresh one ETF's immutable `DataBook`. |
+| `signals.py --symbol 0050` | Live market **context only** — institutional net-buy (T86), margin (MI_MARGN), news. Never a decision input; graceful on failure. |
 
-## Contract & firewall
-- The engine's artifacts validate against committed JSON Schemas in `schemas/`
-  (`rebalance_plan`, `etf_research_report`, …); `tests/test_schema_validation.py`
-  asserts conformance, and `STACKFUND_SCHEMA_DIR` locates them at runtime.
-- The crowd-scenario layer is **not** part of this skill's decision path (L4/L5
-  never import it — enforced by `import-linter` + tests).
+## Reading the output
+The engine gives you numbers; you turn them into plain language. **Invent no number.**
+
+- **REBALANCE** — e.g. `0056 +5.00pp, target 37.4%, benefit 81bps vs cost 19bps`.
+  Say: 引擎建議小幅加碼到約 37%,因為預期效益(81bps)明顯蓋過交易成本(19bps),不是追價。
+- **NO_ACTION [EXPECTED_BENEFIT_BELOW_TRANSACTION_COST]** — the output now shows the
+  gap, e.g. `15.8bps short of the 19.0bps cost threshold`. Say: 這週不動 0050 ——
+  預期效益離手續費/稅的門檻還差 15.8bps,動了反而虧。**Lead with how close it was.**
+- **NO_ACTION [WITHIN_TOLERANCE]** — the target barely moved; holding is correct.
+- **NO_ACTION [INELIGIBLE, …]** — failed the L2 gate (e.g. `00631L` 2× leveraged →
+  `LEVERAGED_OR_INVERSE`). Rejected before scoring, by design.
+- **The ranking** — `net edge = benefit - cost`, sorted. One glance at "what's most
+  worth acting on this run"; below-cost and ineligible rows sort last. It re-uses the
+  engine's own numbers — it is a **view, never a new decision**.
 
 ## Worked example
 **User:** 研究 0056,給再平衡決策
+```bash
+python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878
+```
+The 0056 decision (excerpt): `REBALANCE +5.00pp, target 37.4%, benefit 81.0bps,
+cost 19.0bps, reasons [valuation +0.30, yield +1.00, trend −0.10]`.
+> 【結論】0056 偏正向,引擎建議**小幅加碼**到約 37% 權重。
+> 【為什麼】估值與配息面偏好,且**預期效益明顯大於買賣成本**(不是追價)。
+> 〔細節〕benefit 81bps vs cost 19bps;valuation +0.30 / yield +1.00 / trend −0.10。
+> 群眾情境見 `stackfund-crowd-scenario`;**群眾僅供參考,不影響決策**。
+> *研究/教育 · 非個別化建議 · 不下任何證券委託單。*
 
-1. `python ${HERMES_SKILL_DIR}/scripts/fetch.py --symbol 0056 --live` → immutable `DataBook`.
-2. `python ${HERMES_SKILL_DIR}/scripts/research.py --symbols 0050 0056 00878` → the engine
-   computes every number (its artifacts are schema-checked in CI). The 0056 decision (excerpt):
-   ```json
-   {"symbol": "0056", "action": "REBALANCE", "delta_pp": 5.0, "target_weight_pct": 37.4,
-    "benefit_bps": 81.0, "cost_bps": 19.0,
-    "reasons": ["valuation +0.30", "yield/fundamental +1.00", "trend -0.10"],
-    "crowd_consensus": "bearish", "engine_posture": "bullish", "divergence_bucket": "HIGH"}
-   ```
-3. **Interpret — invent no number; plain language first, jargon in a separate detail block:**
-   > 【結論】0056 偏正向,引擎在這個研究情境下建議**小幅加碼**到約 37% 權重。
-   > 【為什麼】估值與配息面偏好,而且**預期效益明顯大於買賣成本**(不是追價)。
-   > 〔細節〕REBALANCE +5.00pp → 目標 37.4%;benefit 81bps(約每投入 1 萬多 ~81 元預期效益)
-   > > cost 19bps;reason codes valuation +0.30 / yield +1.00 / trend −0.10。群眾 bearish、
-   > 引擎 bullish、分歧 HIGH —— 群眾與引擎意見相左,但**群眾僅供參考,不影響決策**
-   > (分歧越大,越顯出決策只由硬數據決定)。
-   > *研究/教育 · 非個別化建議 · 不下任何證券委託單。*
+## Data & freshness rules
+- **Official data is the anchor** — TWSE for price/volume; ETF yield/NAV/tracking-error
+  are **reference/fixture** (the free TWSE feed excludes ETFs) — label them as such.
+- **Always surface freshness** — state `as_of` and live-vs-frozen every reply. Live
+  fetch fails/partial → fall back to the frozen `DataBook`, labelled `frozen`/`partial`.
+  Never present stale data as live; never fabricate a missing fundamental.
+- **Context ≠ decision** — chips/news from `signals.py` are colour only; the scorecard
+  reads the `DataBook`, not those signals. Present them in a clearly separated block.
 
-   For a `NO_ACTION` (e.g. 0050 `EXPECTED_BENEFIT_BELOW_TRANSACTION_COST`): lead with
-   「這週不動 0050 —— 預期效益還蓋不過手續費/稅,動了反而虧」, then the bps detail.
+## Guardrails (summary)
+The crowd-scenario layer is **not** in this skill's decision path — L4/L5 never
+import it (import-linter + `tests/test_firewall_no_imports.py`). Engine artifacts
+validate against committed JSON Schemas (`schemas/`), asserted in CI. `L4` consumes
+only an `AuthoritativeState`, never a crowd input.
 
-## Failure modes & scope
-- **Scope:** the 8-ETF fixture universe — **0050 / 0056 / 006208 / 00878 / 00919 /
-  00713 / 00929 / 00850** (all pass the L2 eligibility gate; the list is
-  `DEFAULT_SYMBOLS` in `src/stackfund/cli.py`). The gate **rejects** stale /
-  leveraged-inverse / thin / NAV-incomparable ETFs — e.g. `00631L` (2× leveraged)
-  → `NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`, by design.
-  For a ticker with no fixture, say so — never fabricate fundamentals.
-- **Live fetch fails / partial** → fall back to the frozen `DataBook` and **label it
-  `frozen` / `partial`**; never present stale data as live.
-- **ETF yield / NAV / tracking-error are *reference*, not live** by default (the free TWSE
-  feed excludes ETFs) — label them reference, not truth.
-- **Always surface freshness:** state the `as_of` date and live-vs-frozen in every reply;
-  if a source is incomplete, mark it — don't invent. Detail: `references/data-sources.md`.
-
-## Extending the universe (adding an ETF — and later TW/US equities)
-Adding an ETF is a data change, not a code change:
-1. Create `fixtures/etf_<symbol>.json` (copy an existing one: `metrics` —
-   price/nav/discount_premium/tracking_error/yield/price_5d_return/
-   catalyst_strength — plus a `price_series`).
-2. Add the symbol to `DEFAULT_SYMBOLS` in `src/stackfund/cli.py` (or pass
-   `--symbols` ad hoc). The eligibility gate decides — a leveraged/thin product
-   is *supposed* to come back `INELIGIBLE`.
-3. `--live` overlays real TWSE price/volume automatically; fundamentals come
-   from the pluggable `FundamentalsProvider` (see `references/data-sources.md`).
-
-**Individual TW/US equities (roadmap):** engine-side work behind the same
-contracts — an equity eligibility gate + fundamental scores (the L4 math is
-already instrument-agnostic; see `references/scoring-rules.md`), a US source
-module + calendar (see the multi-market seam in `references/data-sources.md`),
-and a market-scoped crowd roster (see the `stackfund-crowd-scenario` skill).
-This skill stays a thin wrapper either way — **never** compute numbers here.
+## Extending the universe
+Adding an ETF is a **data change, not code**: create `fixtures/etf_<symbol>.json`
+(copy an existing one) and add the symbol to `DEFAULT_SYMBOLS` in `cli.py` (or pass
+`--symbols`). The eligibility gate decides — a leveraged/thin product is *supposed*
+to return `INELIGIBLE`. Individual TW/US equities are a roadmap item behind the same
+`DataBook → ScoreCard → plan` contracts (the L4 math is already instrument-agnostic).
 
 ## References
-- `references/data-sources.md` — real connectors + source priority + ETF caveats.
-- `references/scoring-rules.md` — transparent scorecard formulas.
+- `references/data-sources.md` — real connectors, source priority, ETF caveats.
+- `references/scoring-rules.md` — transparent scorecard + decision formulas.
+- `references/value-analysis.md` — value/moat framework + [A]–[E] durability rating.
 - `references/output-schema.md` — report shapes.
-- `references/value-analysis.md` — value-investing / moat framework + [A]–[E] rating.
-
-## Output expectations
-Facts first, interpretation second. Cite sources, label freshness, state missing
-data explicitly. Use cautious, decision-support wording (e.g. 「偏多,但估值偏高,
-追價風險上升」); avoid absolute buy/sell language; never imply an order was placed.

@@ -21,3 +21,8 @@ class DataBook:
     freshness: str  # "frozen" | "live" | "partial"
     metrics: dict[str, float] = field(default_factory=dict)
     book_hash: str = ""
+    # Daily close series (oldest -> newest). Authoritative, used by L2 for a
+    # medium-term momentum sub-score. Defaulted empty so existing callers and the
+    # live path (which may not carry a series) keep working. NEVER crosses the
+    # firewall: L3 only ever sees the bucketed ScenarioSeed, not this object.
+    price_series: tuple[float, ...] = field(default_factory=tuple)

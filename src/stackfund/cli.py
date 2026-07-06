@@ -24,6 +24,7 @@ from stackfund.contracts.costs import CostModel
 from stackfund.contracts.market import MarketState
 from stackfund.contracts.policy import PolicySet
 from stackfund.contracts.portfolio import PortfolioState
+from stackfund.contracts.rebalance_plan import EXPECTED_BENEFIT_BELOW_TRANSACTION_COST
 from stackfund.l1_databook import (
     SitcaFundamentals,
     load_databook,
@@ -34,6 +35,7 @@ from stackfund.l1_databook.book import LIVE_MOMENTUM_FIELDS, LIVE_PRICE_FIELDS
 from stackfund.l2_scorecard import build_scorecard
 from stackfund.l3_crowd import run_scenario
 from stackfund.l4_portfolio import build_rebalance_plan
+from stackfund.l4_portfolio.plan import ALPHA_BPS
 from stackfund.l5_finops import (
     EARN,
     SPEND,
@@ -148,6 +150,19 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
                     "reasons": list(d.hard_reasons),
                 }
             )
+        elif EXPECTED_BENEFIT_BELOW_TRANSACTION_COST in plan.reason_codes:
+            # NO_ACTION on the cost gate: surface how far the trade fell short of
+            # clearing the transaction cost (benefit computed the same way L4 does,
+            # from the same scorecard — presentation only, never a decision input).
+            benefit_bps = round(abs(scorecard.composite()) * ALPHA_BPS, 1)
+            cost_bps = costs.round_trip_bps
+            row.update(
+                {
+                    "benefit_bps": benefit_bps,
+                    "cost_bps": cost_bps,
+                    "gap_to_threshold_bps": round(cost_bps - benefit_bps, 1),
+                }
+            )
         etfs.append(row)
 
     # FinOps SPEND + REFUSED SPEND beat (the business, not ETFs)
@@ -198,6 +213,31 @@ def build_pipeline_result(symbols: list[str], scenario: str, seed: int, live: bo
     }
 
 
+def _worth_acting_bps(e: dict) -> float:
+    """Net edge = benefit - cost. REBALANCE rows clear it (positive); cost-gate
+    NO_ACTION rows fall short (negative). Rows with no computed benefit (eligibility
+    gate / within-tolerance) sort last. Presentation only - never a decision input.
+    """
+    if "benefit_bps" in e and "cost_bps" in e:
+        return round(e["benefit_bps"] - e["cost_bps"], 1)
+    return float("-inf")
+
+
+def _print_action_ranking(etfs: list[dict]) -> None:
+    """A one-glance 'what's most worth acting on this run' view, sorted by net edge."""
+    ranked = sorted(etfs, key=_worth_acting_bps, reverse=True)
+    print("\n--- Ranked by worth-acting (net edge = benefit - cost; presentation only) ---")
+    for i, e in enumerate(ranked, 1):
+        edge = _worth_acting_bps(e)
+        if edge == float("-inf"):
+            tag = "- no computed edge (ineligible / within tolerance)"
+        elif edge >= 0:
+            tag = f"+{edge}bps net -> {e['action']}"
+        else:
+            tag = f"{edge}bps net (below cost) -> {e['action']}"
+        print(f"  {i}. {e['symbol']:>7}  {tag}")
+
+
 def cmd_pipeline(args: argparse.Namespace) -> int:
     symbols = args.symbols or DEFAULT_SYMBOLS
     result = build_pipeline_result(
@@ -216,15 +256,23 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
                 f"vs cost {e['cost_bps']}bps) reasons={e['reasons']}"
             )
         else:
-            print(
+            line = (
                 f"[{e['symbol']}] HARD {e['action']} reasons={e['reason_codes']} "
                 f"({e['no_action_reason']})"
             )
+            if "gap_to_threshold_bps" in e:
+                line += (
+                    f"  [{e['gap_to_threshold_bps']}bps short of the "
+                    f"{e['cost_bps']}bps cost threshold]"
+                )
+            print(line)
         print(
             f"      FACE (non-authoritative, NOT in plan): "
             f"crowd={e['crowd_consensus']} vs engine={e['engine_posture']} "
             f"-> divergence={e['divergence_bucket']}"
         )
+
+    _print_action_ranking(result["etfs"])
 
     fin = result["finops"]
     print("\n--- Ledgers (kept strictly separate) ---")
@@ -314,7 +362,13 @@ def cmd_signals(args: argparse.Namespace) -> int:
 
 def cmd_crowd(args: argparse.Namespace) -> int:
     book = load_databook_from_fixture(_fixtures_dir() / f"etf_{args.symbol}.json")
-    seed = make_seed(book, market_scenario_label=args.scenario, rng_seed=args.seed)
+    seed = make_seed(
+        book,
+        market_scenario_label=args.scenario,
+        rng_seed=args.seed,
+        horizon=args.horizon,
+        intensity=args.intensity,
+    )
     narrative = run_scenario(seed, n_personas=args.n, dry_run=args.dry_run)
     out = {
         "seed_id": narrative.seed_id,
@@ -465,6 +519,18 @@ def main(argv: list[str] | None = None) -> int:
     p_crowd.add_argument("--scenario", default="0056_cut")
     p_crowd.add_argument("--seed", type=int, default=42)
     p_crowd.add_argument("--n", type=int, default=30)
+    p_crowd.add_argument(
+        "--horizon",
+        choices=["intraday", "swing", "long"],
+        default="swing",
+        help="rehearsal time-scale (shifts which cohort leads the reaction chain)",
+    )
+    p_crowd.add_argument(
+        "--intensity",
+        choices=["mild", "severe"],
+        default="mild",
+        help="rehearsal shock strength (severe: the tail also capitulates)",
+    )
     p_crowd.add_argument("--dry-run", action="store_true", default=True)
     p_crowd.set_defaults(func=cmd_crowd)
 

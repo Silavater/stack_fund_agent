@@ -18,19 +18,26 @@ e.g. `00631L` (2× leveraged) → `NO_ACTION [INELIGIBLE, LEVERAGED_OR_INVERSE]`
 
 ## L2 sub-scores (all clipped to [-1, +1]; risk to [0, 1])
 
-| sub-score    | formula                                              |
-|--------------|------------------------------------------------------|
-| trend        | `price_5d_return / 5`                                |
-| valuation    | `-discount_premium / 2` (a discount is cheaper → +)  |
-| fundamental  | `(yield - 4) / 4`                                    |
-| catalyst     | `catalyst_strength`                                  |
-| risk         | `tracking_error / 2` (clipped 0..1)                  |
+| sub-score      | formula                                                          |
+|----------------|------------------------------------------------------------------|
+| trend          | `price_5d_return / 5` (short-window, last 5 days)                |
+| momentum_slope | OLS slope of `price_series` / mean price × 200, clipped [-1,+1]; `0.0` if series < 5 pts (medium-term, full series) |
+| valuation      | `-discount_premium / 2` (a discount is cheaper → +)             |
+| fundamental    | `(yield - 4) / 4`                                                |
+| catalyst       | `catalyst_strength`                                             |
+| risk           | `tracking_error / 2` (clipped 0..1)                            |
 
 ## Composite (in `ScoreCard.composite()`)
 
 ```
-composite = 0.30*trend + 0.25*valuation + 0.20*fundamental + 0.15*catalyst - 0.10*risk
+composite = 0.20*trend + 0.10*momentum_slope + 0.25*valuation
+          + 0.20*fundamental + 0.15*catalyst - 0.10*risk
 ```
+
+> `trend` and `momentum_slope` split the old 0.30 trend weight (0.20 + 0.10) so the
+> medium-term full-series trend gets a voice alongside the short 5-day window — a
+> series can be up over 24 days while down over 5 (e.g. 0056). Weights still total
+> 0.90 positive − 0.10 risk, matching the pre-momentum mix.
 
 ## L4 decision (in `build_rebalance_plan`; policy defaults in `contracts/policy.py`)
 

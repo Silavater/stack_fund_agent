@@ -32,8 +32,17 @@ def build_databook(
     metrics: dict[str, float],
     observed_at: str,
     freshness: str = "frozen",
+    price_series: tuple[float, ...] = (),
 ) -> DataBook:
-    book_hash = _hash({"symbol": symbol, "metrics": metrics, "observed_at": observed_at})
+    series = tuple(float(x) for x in price_series)
+    book_hash = _hash(
+        {
+            "symbol": symbol,
+            "metrics": metrics,
+            "observed_at": observed_at,
+            "price_series": list(series),
+        }
+    )
     return DataBook(
         book_id=f"db_{symbol}_{book_hash[:8]}",
         etf_symbol=symbol,
@@ -41,6 +50,7 @@ def build_databook(
         freshness=freshness,
         metrics=dict(metrics),
         book_hash=book_hash,
+        price_series=series,
     )
 
 
@@ -51,6 +61,7 @@ def load_databook_from_fixture(path: str | Path) -> DataBook:
         metrics=data["metrics"],
         observed_at=data["observed_at"],
         freshness=data.get("freshness", "frozen"),
+        price_series=tuple(data.get("price_series", ())),
     )
 
 
@@ -86,6 +97,7 @@ def load_databook(
     observed_at = data["observed_at"]
     freshness = data.get("freshness", "frozen")
     metrics = dict(fixture_metrics)
+    price_series = tuple(data.get("price_series", ()))
 
     provider = fundamentals or FixtureFundamentals(fixture_metrics)
     supplied = provider.fundamentals(symbol)
@@ -110,4 +122,4 @@ def load_databook(
             metrics["price_5d_return"] = hist["price_5d_return_pct"]
             freshness = "live"
 
-    return build_databook(symbol, metrics, observed_at, freshness)
+    return build_databook(symbol, metrics, observed_at, freshness, price_series)

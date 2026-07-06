@@ -54,6 +54,39 @@ def test_scorecard_is_deterministic_and_derived():
     assert a.valuation_score == 0.3
     assert a.fundamental_score == 1.0
     assert a.eligible is True
+    # No price_series on this book -> momentum sub-score is a neutral 0.0.
+    assert a.momentum_slope_score == 0.0
+
+
+def test_momentum_slope_from_price_series():
+    """A rising close series yields a positive momentum score; a falling one negative;
+    a too-short series stays neutral. Complements the 5-day trend (medium-term view)."""
+    rising = build_databook(
+        "X", {}, "2026-06-19", price_series=tuple(float(i) for i in range(10, 40))
+    )
+    falling = build_databook(
+        "X", {}, "2026-06-19", price_series=tuple(float(i) for i in range(40, 10, -1))
+    )
+    short = build_databook("X", {}, "2026-06-19", price_series=(10.0, 11.0))
+    assert build_scorecard(rising).momentum_slope_score > 0
+    assert build_scorecard(falling).momentum_slope_score < 0
+    assert build_scorecard(short).momentum_slope_score == 0.0
+
+
+def test_composite_uses_option_a_weights():
+    """Option-A: trend 0.20 + momentum 0.10 (was trend 0.30). With momentum 0 and a
+    known scorecard, composite matches the hand-computed Option-A weighting."""
+    sc = build_scorecard(_book())  # momentum 0.0, no series
+    expected = round(
+        0.20 * sc.trend_score
+        + 0.10 * sc.momentum_slope_score
+        + 0.25 * sc.valuation_score
+        + 0.20 * sc.fundamental_score
+        + 0.15 * sc.catalyst_score
+        - 0.10 * sc.risk_score,
+        4,
+    )
+    assert sc.composite() == expected
 
 
 def test_eligibility_gate_blocks_leveraged():
